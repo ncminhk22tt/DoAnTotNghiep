@@ -1,0 +1,27 @@
+.text {
+  display: grid;
+  gap: 6px;
+  white-space: normal;
+}
+
+.line {
+  white-space: pre-wrap;
+}
+
+.lineSpacer {
+  height: 4px;
+}
+
+.bulletCard {
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #f8faff;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+}
+
+.link {
+  color: #0369a1;
+  text-decoration: underline;
+  font-weight: 600;
+}

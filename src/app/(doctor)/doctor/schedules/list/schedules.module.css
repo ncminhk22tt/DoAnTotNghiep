@@ -1,0 +1,277 @@
+﻿.page {
+  color: #0f172a;
+}
+
+.title {
+  margin: 0 0 12px;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.secondaryBtn,
+.primaryBtn,
+.lockBtn,
+.editBtn,
+.dangerBtn {
+  border-radius: 10px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.secondaryBtn {
+  background: #fff;
+  border-color: #93c5fd;
+  color: #0b5fff;
+}
+
+.secondaryBtn:hover {
+  background: #e0efff;
+}
+
+.primaryBtn {
+  background: #60a5fa;
+  border-color: #60a5fa;
+  color: #fff;
+}
+
+.primaryBtn:hover {
+  background: #3b82f6;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.leftPanel,
+.filterCard {
+  border: 1px solid #cfe4ff;
+  border-radius: 16px;
+  background: #fff;
+  padding: 14px;
+}
+
+.panelTitle {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #1e3a8a;
+}
+
+.rightPanel {
+  min-width: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a8a;
+}
+
+.input {
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 10px;
+  width: 100%;
+}
+
+.selectInput {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #3b82f6 50%),
+    linear-gradient(135deg, #3b82f6 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+
+.listContainer {
+  margin-top: 12px;
+  max-height: 65vh;
+  overflow: auto;
+  border: 1px solid #cfe4ff;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.th {
+  position: sticky;
+  top: 0;
+  background: #eff6ff;
+  color: #1e3a8a;
+  text-align: left;
+  border-bottom: 1px solid #dbeafe;
+  padding: 10px;
+  z-index: 1;
+}
+
+.td {
+  border-bottom: 1px solid #eff6ff;
+  padding: 10px;
+}
+
+.groupBody tr td:first-child {
+  border-left: 3px solid var(--group-border, #2563eb);
+}
+
+.groupBody tr td:last-child {
+  border-right: 3px solid var(--group-border, #2563eb);
+}
+
+.groupBody tr:first-child td {
+  border-top: 3px solid var(--group-border, #2563eb);
+}
+
+.groupBody tr:last-child td {
+  border-bottom: 3px solid var(--group-border, #2563eb);
+}
+
+.groupBody tr td {
+  background: var(--group-bg, #f8fbff);
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status_available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status_full {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status_closed {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.actionHeader,
+.actionCell {
+  text-align: center;
+  width: 1%;
+  white-space: nowrap;
+}
+
+.actionGroup {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.lockBtn {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #1e293b;
+  min-width: 92px;
+  text-align: center;
+}
+
+.lockBtn:hover {
+  background: #cbd5e1;
+}
+
+.lockBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.editBtn {
+  background: #fbbf24;
+  border-color: #fbbf24;
+  color: #fff;
+}
+
+.editBtn:hover {
+  background: #f59e0b;
+}
+
+.dangerBtn {
+  background: #f87171;
+  border-color: #f87171;
+  color: #fff;
+}
+
+.dangerBtn:hover {
+  background: #ef4444;
+}
+
+.emptyCell {
+  text-align: center;
+  color: #64748b;
+  padding: 16px;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.modalCard {
+  width: min(860px, 95vw);
+  background: #fff;
+  border: 1px solid #cfe4ff;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.modalTitle {
+  margin: 0 0 12px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+@media (max-width: 900px) {
+  .contentGrid,
+  .row {
+    grid-template-columns: 1fr;
+  }
+
+  .listContainer {
+    max-height: none;
+  }
+}

@@ -1,0 +1,59 @@
+.page {
+  display: grid;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+  color: #0f172a;
+}
+
+.subTitle {
+  margin: 0;
+  color: #475569;
+}
+
+.grid {
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.cardTitle {
+  margin: 0;
+  color: #1e3a8a;
+}
+
+.cardDesc {
+  margin: 0;
+  color: #334155;
+  min-height: 42px;
+}
+
+.cardBtn {
+  text-decoration: none;
+  width: fit-content;
+  border: 1px solid #93c5fd;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0b5fff;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 980px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

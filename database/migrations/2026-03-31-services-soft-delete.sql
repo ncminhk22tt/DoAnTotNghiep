@@ -1,0 +1,7 @@
+﻿ALTER TABLE services
+  ADD COLUMN IF NOT EXISTS is_active TINYINT(1) NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS deleted_at DATETIME NULL;
+
+UPDATE services
+SET is_active = 1
+WHERE is_active IS NULL;

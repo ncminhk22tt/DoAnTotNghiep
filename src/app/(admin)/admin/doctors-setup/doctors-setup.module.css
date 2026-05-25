@@ -1,0 +1,300 @@
+.page {
+  color: #0f172a;
+}
+
+.title {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.subTitle {
+  margin: 0 0 2px;
+}
+
+.formCard {
+  background: #ffffff;
+  border: 1px solid #cfe4ff;
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 14px;
+  display: grid;
+  gap: 12px;
+  box-shadow: 0 6px 20px rgba(31, 98, 212, 0.08);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a8a;
+}
+
+.hintText {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #0b5fff;
+}
+
+.input {
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  padding: 10px 12px;
+  min-height: 46px;
+  width: 100%;
+  background: #f8fbff;
+  font-size: 16px;
+}
+
+.selectInput {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #3b82f6 50%),
+    linear-gradient(135deg, #3b82f6 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+
+.servicesGrid {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.serviceItem {
+  background: #f8fbff;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 8px;
+}
+
+.listContainer {
+  max-height: 52vh;
+  overflow-y: auto;
+  border: 1px solid #cfe4ff;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.th {
+  border-bottom: 1px solid #dbeafe;
+  text-align: left;
+  padding: 10px;
+  position: sticky;
+  top: 0;
+  background: #eff6ff;
+  z-index: 1;
+  color: #1e3a8a;
+}
+
+.actionHeader {
+  text-align: center;
+  padding-right: 10px;
+  width: 1%;
+  white-space: nowrap;
+}
+
+.td {
+  border-bottom: 1px solid #eff6ff;
+  padding: 10px;
+}
+
+.actionCell {
+  text-align: center;
+  padding: 10px 12px 10px 10px;
+  width: 1%;
+  white-space: nowrap;
+}
+
+.actionGroup {
+  display: inline-flex;
+  justify-content: center;
+  margin-left: 0;
+  gap: 8px;
+  align-items: center;
+}
+
+.primaryBtn,
+.secondaryBtn,
+.detailBtn,
+.editBtn,
+.deleteBtn,
+.dangerBtn {
+  border-radius: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.primaryBtn {
+  border: 1px solid #60a5fa;
+  background: #60a5fa;
+  color: #fff;
+}
+
+.primaryBtn:hover {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.secondaryBtn {
+  border: 1px solid #93c5fd;
+  background: #ffffff;
+  color: #0b5fff;
+}
+
+.secondaryBtn:hover {
+  background: #e0efff;
+}
+
+.detailBtn {
+  border: 1px solid #93c5fd;
+  background: #ffffff;
+  color: #0b5fff;
+}
+
+.detailBtn:hover {
+  background: #e0efff;
+}
+
+.editBtn {
+  border: 1px solid #fbbf24;
+  background: #fbbf24;
+  color: #fff;
+}
+
+.editBtn:hover {
+  background: #f59e0b;
+  border-color: #f59e0b;
+}
+
+.deleteBtn,
+.dangerBtn {
+  border: 1px solid #f87171;
+  background: #f87171;
+  color: #fff;
+}
+
+.deleteBtn:hover,
+.dangerBtn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.modalCard {
+  width: min(420px, 92vw);
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #cfe4ff;
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.modalText {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.4;
+  color: #0f172a;
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.detailTableWrap {
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  overflow: auto;
+}
+
+.detailTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.detailTable th,
+.detailTable td {
+  padding: 10px;
+  border-bottom: 1px solid #eff6ff;
+  text-align: left;
+}
+
+.detailTable th {
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.emptyCell {
+  text-align: center !important;
+  color: #64748b;
+}
+
+@media (max-width: 900px) {
+  .title {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+
+  .formCard {
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .row,
+  .servicesGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .listContainer {
+    max-height: none;
+    overflow: auto;
+  }
+}

@@ -1,0 +1,154 @@
+﻿# Project Tree
+
+> Auto-generated tree (excluding `node_modules`, `.next`, `.git`).
+
+```text
+.env.local
+.gitignore
+AGENTS.md
+BACKEND_REVIEW.md
+CLAUDE.md
+database/
+  init.sql
+eslint.config.mjs
+next.config.ts
+next-env.d.ts
+package.json
+package-lock.json
+postcss.config.mjs
+public/
+  file.svg
+  globe.svg
+  next.svg
+  vercel.svg
+  window.svg
+README.md
+scripts/
+  init-db.cjs
+  migrate-doctor-services-specialty.cjs
+  migrate-schema-hardening.cjs
+  seedAdmin.cjs
+  test-api-smoke.cjs
+  test-critical-flows.cjs
+src/
+  app/
+    api/
+      admin/
+        appointments/
+          [id]/
+            route.ts
+          route.ts
+        audit-logs/
+          route.ts
+        create-doctor/
+          route.ts
+        doctors/
+          setup/
+            [id]/
+              route.ts
+            route.ts
+        notifications/
+          route.ts
+        reports/
+          overview/
+            route.ts
+        services/
+          [id]/
+            route.ts
+          route.ts
+        specialties/
+          [id]/
+            route.ts
+          route.ts
+        users/
+          [id]/
+            route.ts
+          route.ts
+      auth/
+        change-password/
+          route.ts
+        forgot-password/
+          route.ts
+        login/
+          route.ts
+        logout/
+          route.ts
+        refresh/
+          route.ts
+        register/
+          route.ts
+        reset-password/
+          route.ts
+      doctor/
+        appointments/
+          [id]/
+            exam/
+              route.ts
+            route.ts
+          route.ts
+        medical-records/
+          [id]/
+            files/
+              route.ts
+            prescriptions/
+              route.ts
+            route.ts
+          route.ts
+        prescriptions/
+          [id]/
+            route.ts
+        schedules/
+          [id]/
+            route.ts
+          route.ts
+      notifications/
+        [id]/
+          route.ts
+        route.ts
+      patient/
+        appointments/
+          route.ts
+      profile/
+        route.ts
+      public/
+        doctors/
+          [id]/
+            route.ts
+            schedule/
+              route.ts
+          route.ts
+        services/
+          route.ts
+        specialties/
+          route.ts
+      system/
+        reminders/
+          appointments/
+            route.ts
+    favicon.ico
+    globals.css
+    layout.tsx
+    page.tsx
+  lib/
+    apiResponse.ts
+    appointmentStatus.ts
+    auditLog.ts
+    db.ts
+    doctorProfile.ts
+    generateCode.ts
+    generateSlots.ts
+    jwt.ts
+    rateLimit.ts
+    refreshToken.ts
+    requestAuth.ts
+  proxy.ts
+  scripts/
+    seedAdmin.ts
+  types/
+    auth.ts
+    service.ts
+    slot.ts
+    specialty.ts
+tsconfig.json
+tsconfig.tsbuildinfo
+```

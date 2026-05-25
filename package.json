@@ -1,0 +1,44 @@
+{
+  "name": "medical-booking",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next dev -p 3000",
+    "dev:frontend": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next dev -p 3000",
+    "dev:backend": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next dev -p 3000",
+    "build": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next build",
+    "start": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next start",
+    "lint": "eslint",
+    "init:db": "node scripts/init-db.cjs",
+    "seed:admin": "node scripts/seedAdmin.cjs",
+    "seed:demo-data": "node scripts/seed-demo-data.cjs",
+    "migrate:doctor-services-specialty": "node scripts/migrate-doctor-services-specialty.cjs",
+    "migrate:payment-schema": "node scripts/migrate-payment-schema.cjs",
+    "migrate:schema-hardening": "node scripts/migrate-schema-hardening.cjs",
+    "test:critical": "node scripts/test-critical-flows.cjs",
+    "test:api-smoke": "node scripts/test-api-smoke.cjs",
+    "test:ci": "node scripts/test-ci.cjs"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "bcrypt": "^6.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.20.0",
+    "next": "16.2.1",
+    "openai": "^6.34.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/bcrypt": "^6.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

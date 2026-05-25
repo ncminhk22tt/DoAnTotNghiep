@@ -1,0 +1,857 @@
+PHÂN HIỆU ĐẠI HỌC ĐÀ NẴNG TẠI KON TUM
+KHOA CÔNG NGHỆ
+
+
+
+
+
+
+NGUYỄN CÔNG MINH
+
+
+
+XÂY DỰNG WEBSITE ĐẶT LỊCH KHÁM TRỰC TUYẾN
+
+
+BÁO CÁO CÁO ĐỒ ÁN TỐT NGHIỆP
+
+
+
+
+
+
+Quảng Ngãi, tháng 3 năm 2026
+PHÂN HIỆU ĐẠI HỌC ĐÀ NẴNG TẠI KON TUM
+KHOA CÔNG NGHỆ
+
+
+
+
+
+
+
+BÁO CÁO CÁO ĐỒ ÁN TỐT NGHIỆP
+
+
+XÂY DỰNG WEBSITE ĐẶT LỊCH KHÁM TRỰC TUYẾN
+
+
+GVHD: TS. Đồng Ngọc Nguyên Thịnh
+SVTH: Nguyễn Công Minh
+LỚP: K22TT
+
+
+
+
+
+Quảng Ngãi, tháng 8 năm 2025
+TỔNG QUAN ĐỀ TÀI
+LÝ DO CHỌN ĐỀ TÀI
+Trong bối cảnh công nghệ thông tin ngày càng phát triển mạnh mẽ, việc ứng dụng các hệ thống trực tuyến vào lĩnh vực y tế đang trở thành xu hướng tất yếu. Các dịch vụ khám chữa bệnh không chỉ dừng lại ở hình thức truyền thống mà đang dần chuyển sang môi trường số nhằm nâng cao chất lượng phục vụ và tối ưu hóa quy trình quản lý.
+Hiện nay, tại nhiều phòng khám và cơ sở y tế, việc đặt lịch khám bệnh vẫn còn thực hiện theo phương pháp thủ công như gọi điện hoặc đăng ký trực tiếp. Điều này gây ra nhiều bất tiện cho bệnh nhân như mất thời gian chờ đợi, khó lựa chọn bác sĩ phù hợp và dễ xảy ra tình trạng quá tải hoặc trùng lịch khám.
+Bên cạnh đó, việc quản lý thông tin bệnh nhân, lịch sử khám bệnh và kết quả khám vẫn chưa được đồng bộ, gây khó khăn trong việc tra cứu và theo dõi. Ngoài ra, bệnh nhân thường thiếu thông tin để lựa chọn đúng chuyên khoa phù hợp với tình trạng sức khỏe của mình.
+Từ những vấn đề trên, việc xây dựng một hệ thống đặt lịch khám bệnh trực tuyến là cần thiết nhằm giải quyết các hạn chế hiện tại, nâng cao trải nghiệm người dùng và hỗ trợ hiệu quả cho công tác quản lý của các cơ sở y tế.
+MỤC TIÊU ĐỀ TÀI
+Mục tiêu chính của đề tài là xây dựng một website đặt lịch khám bệnh trực tuyến nhằm hỗ trợ bệnh nhân và phòng khám trong việc quản lý và sử dụng dịch vụ khám bệnh một cách hiệu quả.
+Cụ thể, hệ thống hướng đến các mục tiêu sau:
+Xây dựng hệ thống cho phép bệnh nhân đăng ký, đăng nhập và đặt lịch khám trực tuyến 
+Hỗ trợ tìm kiếm bác sĩ theo chuyên khoa và lựa chọn thời gian khám phù hợp 
+Giúp bệnh nhân quản lý lịch hẹn, xem lịch sử khám bệnh và kết quả khám 
+Hỗ trợ bác sĩ trong việc quản lý lịch làm việc và cập nhật thông tin khám bệnh 
+Xây dựng hệ thống quản trị cho phép quản lý người dùng, bác sĩ, chuyên khoa và lịch khám 
+Tích hợp chatbot AI hỗ trợ tư vấn chuyên khoa dựa trên triệu chứng
+PHƯƠNG PHÁP NGHIÊN CỨU
+
+Nghiên cứu lý thuyết
+Thu thập tài liệu:
+Tìm hiểu các tài liệu, sách, bài báo và các công trình nghiên cứu liên quan đến lĩnh vực phát triển website, hệ thống thông tin, thiết kế giao diện người dùng (UI/UX), cơ sở dữ liệu, cũng như các nghiên cứu về hệ thống y tế và hành vi người dùng khi sử dụng các dịch vụ khám bệnh trực tuyến.
+Phân tích mô hình hiện tại:
+Nghiên cứu và phân tích các nền tảng đặt lịch khám bệnh trực tuyến hiện nay (như BookingCare, YouMed, các website bệnh viện, phòng khám) nhằm đánh giá ưu điểm và hạn chế về giao diện, cách tổ chức chức năng, cũng như khả năng hỗ trợ người dùng trong việc đặt lịch, tìm kiếm bác sĩ và tra cứu thông tin y tế.
+Xác định yêu cầu và lập kế hoạch
+Phân tích yêu cầu hệ thống:
+Xác định các chức năng chính cần phát triển cho hệ thống, bao gồm: quản lý người dùng, đặt lịch khám bệnh, quản lý lịch khám, quản lý bác sĩ và chuyên khoa, theo dõi lịch sử khám bệnh, thông báo nhắc lịch, cũng như tích hợp chatbot hỗ trợ tư vấn chuyên khoa dựa trên triệu chứng.
+Thiết kế kiến trúc hệ thống:
+Xây dựng sơ đồ chức năng, luồng xử lý dữ liệu và thiết kế cơ sở dữ liệu phù hợp. Hệ thống sử dụng cơ sở dữ liệu quan hệ để lưu trữ dữ liệu chính như người dùng, bác sĩ, lịch khám và kết quả khám bệnh.
+Xây dựng và triển khai hệ thống
+Thiết kế giao diện:
+Thiết kế giao diện website theo hướng đơn giản, thân thiện với người dùng, đảm bảo khả năng sử dụng dễ dàng và hiển thị tốt trên nhiều thiết bị khác nhau, hỗ trợ người dùng trong việc tìm kiếm và đặt lịch khám nhanh chóng.
+Các công cụ và công nghệ lập trình:
+Sử dụng framework Next.js để xây dựng hệ thống theo hướng fullstack, trong đó Next.js đảm nhận cả vai trò phát triển giao diện người dùng (frontend) và xử lý logic phía máy chủ (backend) thông qua API Routes và Server Actions.
+Hệ thống sử dụng MySQL làm cơ sở dữ liệu để lưu trữ dữ liệu chính như người dùng, bác sĩ, lịch khám và kết quả khám bệnh. Ngoài ra, sử dụng Tailwind CSS để thiết kế giao diện theo hướng hiện đại, tối giản và thân thiện với người dùng, góp phần nâng cao trải nghiệm sử dụng trên nhiều thiết bị khác nhau.
+Tích hợp tính năng và hoàn thiện hệ thống:
+Tiến hành xây dựng và tích hợp các chức năng của hệ thống, đảm bảo các thành phần hoạt động đồng bộ, đáp ứng đầy đủ các yêu cầu đã đề ra.
+
+Kiểm thử
+Tiến hành kiểm thử các chức năng của hệ thống nhằm đảm bảo hoạt động ổn định, chính xác và đáp ứng đúng yêu cầu của người dùng. Quá trình kiểm thử bao gồm kiểm thử giao diện, chức năng đặt lịch, quản lý lịch khám và chatbot hỗ trợ.
+Tổng kết và viết báo cáo
+Tổng hợp toàn bộ quá trình nghiên cứu, thiết kế và triển khai hệ thống, đánh giá kết quả đạt được, những khó khăn gặp phải và các bài học kinh nghiệm trong quá trình thực hiện đề tài.
+Đồng thời đề xuất các hướng phát triển trong tương lai nhằm mở rộng chức năng, nâng cao hiệu quả hệ thống và cải thiện trải nghiệm người dùng.
+GIẢI PHÁP CÔNG NGHỆ
+Để xây dựng hệ thống website đặt lịch khám bệnh trực tuyến, đề tài sử dụng giải pháp công nghệ hiện đại dựa trên nền tảng web với kiến trúc fullstack. Hệ thống được thiết kế nhằm đảm bảo tính linh hoạt, khả năng mở rộng và hiệu suất hoạt động ổn định.
+Giải pháp công nghệ được lựa chọn tập trung vào việc sử dụng một framework thống nhất để phát triển cả giao diện người dùng và xử lý logic phía máy chủ, giúp đơn giản hóa quá trình phát triển và triển khai hệ thống.
+Công nghệ sử dụng:
+Next.js (Fullstack Framework) được sử dụng làm nền tảng chính để phát triển hệ thống theo mô hình fullstack. Framework này cho phép xây dựng đồng thời cả frontend và backend trong cùng một dự án.
+Các tính năng nổi bật của Next.js được áp dụng trong hệ thống bao gồm:
+Server Components giúp tối ưu hiệu suất hiển thị 
+API Routes hỗ trợ xây dựng các API xử lý dữ liệu 
+Server Actions giúp xử lý logic phía server một cách hiệu quả 
+Hỗ trợ SSR (Server-Side Rendering) giúp cải thiện tốc độ tải trang
+Cơ sở dữ liệu MySQL được sử dụng làm hệ quản trị cơ sở dữ liệu quan hệ để lưu trữ các dữ liệu chính của hệ thống như thông tin người dùng, bác sĩ, chuyên khoa, lịch khám và kết quả khám bệnh.
+Hệ quản trị này đảm bảo:
+Tính toàn vẹn dữ liệu 
+Khả năng xử lý truy vấn nhanh 
+Dễ dàng mở rộng và bảo trì
+Tailwind CSS được sử dụng để xây dựng giao diện người dùng theo hướng hiện đại và tối giản.
+Công nghệ này giúp:
+Tăng tốc độ phát triển giao diện 
+Dễ dàng tùy chỉnh thiết kế 
+Đảm bảo giao diện hiển thị tốt trên nhiều thiết bị
+
+Công cụ hỗ trợ phát triển
+Ngoài các công nghệ chính, hệ thống còn sử dụng một số công cụ hỗ trợ như:
+Visual Studio Code: môi trường lập trình chính 
+Git: quản lý phiên bản mã nguồn 
+Postman: kiểm thử API 
+Draw.io: thiết kế sơ đồ hệ thống
+Kiến trúc hệ thống
+Hệ thống được xây dựng theo kiến trúc client – server tích hợp trong Next.js, trong đó frontend và backend được triển khai trong cùng một ứng dụng.
+Trong đó:
+Giao diện người dùng được xây dựng bằng Next.js 
+Các yêu cầu từ người dùng được xử lý thông qua API Routes hoặc Server Actions 
+Dữ liệu được lưu trữ và truy xuất từ cơ sở dữ liệu MySQL
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG
+TỔNG QUAN HỆ THỐNG
+Mô tả hệ thống
+Hệ thống “Website đặt lịch khám bệnh trực tuyến” được xây dựng nhằm hỗ trợ người dùng thực hiện việc đặt lịch khám một cách nhanh chóng, thuận tiện và hiệu quả thông qua nền tảng web.
+Hệ thống cho phép người dùng tra cứu thông tin bác sĩ, chuyên khoa, lựa chọn thời gian khám phù hợp và thực hiện đặt lịch trực tuyến. Đồng thời, hệ thống hỗ trợ bác sĩ quản lý lịch làm việc, cập nhật kết quả khám bệnh và giúp quản trị viên quản lý toàn bộ dữ liệu của hệ thống.
+Ngoài ra, hệ thống còn tích hợp chức năng thông báo nhắc lịch và có thể mở rộng tích hợp chatbot AI hỗ trợ tư vấn lựa chọn chuyên khoa dựa trên triệu chứng.
+Các tác nhân tương tác với hệ thống
+Các tác nhân tham gia và tương tác với hệ thống bao gồm:
+STT
+Tác nhân
+Mô tả
+1
+Khách vãng lai
+Người chưa đăng nhập, chỉ có thể xem thông tin
+2
+Bệnh nhân
+Người sử dụng dịch vụ đặt lịch khám
+3
+Bác sĩ
+Người thực hiện khám bệnh
+4
+Quản trị viên
+Quản lý hệ thống
+5
+Hệ thống
+Xử lý dữ liệu tự động
+
+Sơ đồ tổng quan hệ thống
+
+
+
+
+PHÂN TÍCH HỆ THỐNG
+Tác nhân
+STT
+Tác nhân
+Mô tả
+1
+Khách vãng lai
+Người dùng chưa đăng nhập, có thể xem thông tin chuyên khoa, bác sĩ và lịch làm việc nhưng không thể đặt lịch
+2
+Bệnh nhân
+Người dùng đã đăng nhập, có thể đặt lịch khám, quản lý lịch hẹn, xem lịch sử khám và thông tin cá nhân
+3
+Bác sĩ
+Người thực hiện khám bệnh, có quyền xem lịch làm việc, danh sách bệnh nhân và cập nhật kết quả khám
+4
+Quản trị viên (Admin)
+Người quản lý hệ thống, có quyền quản lý người dùng, bác sĩ, chuyên khoa, dịch vụ khám và theo dõi hoạt động
+5
+Hệ thống (System)
+Thành phần xử lý tự động, kiểm tra dữ liệu, xử lý nghiệp vụ và đảm bảo tính toàn vẹn dữ liệu
+
+Luồng giao diện chức năng hệ thống
+Mô tả cách các tác nhân tương tác với hệ thống thông qua các chức năng chính:
+Luồng giao diện Khách vãng lai: Thực hiện việc tra cứu thông tin bác sĩ, chuyên khoa và đăng ký/đăng nhập để sử dụng hệ thống. 
+Luồng giao diện Bệnh nhân: Bao gồm các bước từ đăng nhập, tìm kiếm bác sĩ, chọn lịch khám, đặt lịch và quản lý lịch hẹn. 
+Luồng giao diện Bác sĩ: Bao gồm việc xem lịch làm việc, danh sách bệnh nhân và cập nhật kết quả khám bệnh. 
+Luồng giao diện Admin: Bao gồm quản lý hệ thống như người dùng, bác sĩ, chuyên khoa, dịch vụ khám và theo dõi thống kê.
+
+Luồng giao diện chức năng Khách vãng lai
+
+Luồng giao diện chức năng Người dùng
+
+
+
+
+
+
+
+Luồng giao diện chức năng Bác sĩ
+
+
+
+
+
+
+
+
+
+
+Yêu cầu chức năng
+Chức năng Khách vãng lai
+Bảng 2.1: Chức năng Khách vãng lai
+STT
+Tên chức năng
+Mục đích
+Dữ liệu đầu vào
+Kiểm tra dữ liệu
+1
+Xem chuyên khoa
+Hiển thị danh sách chuyên khoa
+Không yêu cầu
+Hệ thống truy vấn dữ liệu từ bảng specialties
+2
+Xem bác sĩ
+Hiển thị danh sách bác sĩ theo chuyên khoa
+specialty_id
+Integer > 0, tồn tại
+3
+Xem chi tiết bác sĩ
+Hiển thị thông tin bác sĩ
+doctor_id
+Integer > 0, tồn tại
+4
+Xem lịch làm việc
+Xem lịch trống của bác sĩ
+doctor_id, date
+doctor_id: Integer; date: Date hợp lệ
+5
+Đăng ký
+Tạo tài khoản
+username, password, email
+username: String(≤100), không trống; password: String(≥6); email: đúng định dạng
+6
+Đăng nhập
+Truy cập hệ thống
+username, password
+String, không để trống
+
+Chức năng Người dùng(Bệnh nhân)
+Bảng 2.2: Chức năng Người dùng(Bệnh nhân)
+STT
+Tên chức năng
+Mục đích
+Dữ liệu đầu vào
+Kiểm tra dữ liệu
+1
+Đăng nhập
+Truy cập hệ thống
+username, password
+String, không để trống
+2
+Tìm kiếm bác sĩ
+Lọc theo chuyên khoa
+specialty_id
+Integer > 0
+3
+Xem lịch trống
+Xem thời gian khám
+doctor_id, date
+doctor_id: Integer; date hợp lệ
+4
+Đặt lịch khám
+Tạo lịch khám
+schedule_id, note
+schedule_id: Integer, tồn tại, chưa được đặt (không trùng lịch); note: String(≤255)
+5
+Hủy lịch
+Hủy lịch đã đặt
+appointment_id
+Integer, tồn tại
+6
+Xem lịch khám
+Xem danh sách lịch
+user_id
+Integer, tồn tại
+7
+Xem lịch sử khám
+Xem lịch sử
+user_id
+Integer, tồn tại
+8
+Cập nhật thông tin
+Sửa thông tin cá nhân
+full_name, phone
+full_name: String(≤100); phone: đúng định dạng
+9
+Nhận thông báo
+Nhận thông báo
+Không yêu cầu
+Hệ thống truy vấn bảng notifications
+
+Chức năng Bác sĩ
+Bảng 2.3: Chức năng Bác sĩ
+STT
+Tên chức năng
+Mục đích
+Dữ liệu đầu vào
+Kiểm tra dữ liệu
+1
+Đăng nhập
+Truy cập hệ thống
+username, password
+Không để trống
+2
+Xem lịch làm việc
+Xem lịch khám
+doctor_id
+Integer, tồn tại
+3
+Xem danh sách bệnh nhân
+Xem bệnh nhân theo lịch
+doctor_id
+Integer, tồn tại
+4
+Xem chi tiết bệnh nhân
+Xem thông tin bệnh nhân
+appointment_id
+Integer, tồn tại
+5
+Cập nhật kết quả khám
+Lưu kết quả khám
+appointment_id, diagnosis
+appointment_id: tồn tại; diagnosis: Text, không trống
+6
+Kê đơn thuốc
+Tạo đơn thuốc
+medical_record_id, medicine
+medical_record_id: tồn tại; medicine: không trống
+7
+Quản lý lịch làm việc
+
+
+
+
+Chức năng Admin
+Bảng 2.4: Chúc năng Admin
+STT
+Tên chức năng
+Mục đích
+Dữ liệu đầu vào
+Kiểm tra dữ liệu
+1
+Đăng nhập
+Truy cập hệ thống
+username, password
+Không để trống
+2
+Quản lý người dùng
+Khóa/mở khóa tài khoản
+user_id, status
+user_id: Integer, tồn tại; status: hợp lệ
+3
+Quản lý bác sĩ
+Thêm/sửa/xóa bác sĩ
+name, specialty_id
+name: String; specialty_id: tồn tại
+4
+Quản lý chuyên khoa
+CRUD chuyên khoa
+name
+String(≤100), không trống
+5
+Quản lý dịch vụ khám
+CRUD dịch vụ
+name, price
+name: String; price: Decimal > 0
+6
+Quản lý lịch khám
+Duyệt/hủy lịch
+appointment_id, status
+appointment_id: tồn tại; status: hợp lệ
+7
+Xem thống kê
+Xem báo cáo
+Không yêu cầu
+Hệ thống tổng hợp dữ liệu
+
+Chức năng Hệ thống
+Bảng 2.5: Chức năng Hệ thống
+STT
+Tên chức năng
+Mô tả
+1
+Kiểm tra trùng lịch
+Không cho đặt trùng
+2
+Gửi thông báo
+Nhắc lịch khám
+3
+Xử lý dữ liệu
+Validate input
+
+Thiết kế cơ sở dữ liệu
+Bảng 2.6: users
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+id
+BIGINT
+PK, AUTO_INCREMENT
+ID người dùng
+username
+VARCHAR(100)
+UNIQUE, NOT NULL
+Tên đăng nhập
+password
+VARCHAR(255)
+NOT NULL
+Mật khẩu
+full_name
+VARCHAR(100)
+NOT NULL
+Họ tên
+email
+VARCHAR(100)
+UNIQUE
+Email
+phone
+VARCHAR(20)
+UNIQUE
+Số điện thoại
+avatar
+VARCHAR(255)
+DEFAULT
+Ảnh đại diện
+role
+ENUM
+NOT NULL
+Vai trò (patient, doctor, admin)
+status
+ENUM
+NOT NULL
+Trạng thái tài khoản
+created_at
+DATETIME
+DEFAULT
+Ngày tạo
+updated_at
+DATETIME
+AUTO UPDATE
+Ngày cập nhật
+
+Bảng 2.7: specialties
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+id
+BIGINT
+PK
+ID chuyên khoa
+name
+VARCHAR(100)
+
+Tên chuyên khoa
+description
+TEXT
+
+Mô tả
+
+Bảng 2.8: services
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+id
+BIGINT
+PK
+ID dịch vụ
+name
+VARCHAR(150)
+UNIQUE, NOT NULL
+Tên dịch vụ
+specialty_id
+BIGINT
+FK
+Thuộc chuyên khoa
+description
+TEXT
+
+Mô tả
+Bảng 2.9: doctors
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+id
+BIGINT
+PK
+ID bác sĩ
+user_id
+BIGINT
+FK
+Liên kết users
+specialty_id
+BIGINT
+FK
+Chuyên khoa
+experience
+INT
+
+Số năm kinh nghiệm
+description
+TEXT
+
+Mô tả
+status
+ENUM
+DEFAULT
+Trạng thái
+doctor_code
+VARCHAR(20)
+UNIQUE
+Mã bác sĩ
+
+Bảng 2.10: doctor_services
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+doctor_id
+BIGINT
+PK, FK
+Bác sĩ
+service_id
+BIGINT
+PK, FK
+Dịch vụ
+specialty_id
+BIGINT
+FK
+Chuyên khoa
+
+Bảng 2.11: doctor_schedules
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+id
+BIGINT
+PK
+ID lịch
+doctor_id
+BIGINT
+FK
+Bác sĩ
+date
+DATE
+
+Ngày
+time_slot
+VARCHAR(50)
+
+Khung giờ
+is_available
+BOOLEAN
+
+Có trống hay không
+
+Bảng 2.12: appointments
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+id
+BIGINT
+PK
+ID lịch hẹn
+user_id
+BIGINT
+FK
+Bệnh nhân
+doctor_id
+BIGINT
+FK
+Bác sĩ
+schedule_id
+BIGINT
+FK
+Lịch
+status
+ENUM
+
+Trạng thái
+note
+TEXT
+
+Ghi chú
+created_at
+DATETIME
+
+Ngày tạo
+
+
+
+
+Bảng 2.13: medical_records
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+id
+BIGINT
+PK
+ID hồ sơ
+appointment_id
+BIGINT
+FK
+Lịch khám
+diagnosis
+TEXT
+
+Chẩn đoán
+notes
+TEXT
+
+Ghi chú
+created_at
+DATETIME
+
+Ngày tạo
+
+Bảng 2.14: prescriptions
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+id
+BIGINT
+PK
+ID đơn thuốc
+medical_record_id
+BIGINT
+FK
+Hồ sơ bệnh
+
+Bảng 2.15: prescription_items
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+id
+BIGINT
+PK
+ID
+prescription_id
+
+BIGINT
+FK
+Đơn thuốc
+medicine_name     
+VARCHAR(100)
+
+Tên thuốc
+dosage
+VARCHAR(100)
+
+Liều dùng
+duration
+VARCHAR(100)
+
+Thời gian
+
+Bảng 2.16: notifications
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+id
+BIGINT
+PK
+ID
+user_id
+BIGINT
+FK
+Người nhận
+message
+TEXT
+
+Nội dung
+is_read
+BOOLEAN
+DEFAULT
+Đã đọc
+created_at
+DATETIME
+
+Ngày tạo
+
+
+
+
+
+
+
+
+
+
+Bảng 2.17: medical_record_files
+Tên trường
+Kiểu dữ liệu
+Ràng buộc
+Mô tả
+id
+BIGINT
+PK
+ID
+medical_record_id
+BIGINT
+FK
+Hồ sơ
+uploaded_by_user_id
+BIGINT
+FK
+Người upload
+file_name
+VARCHAR(255)
+
+Tên file
+mime_type
+VARCHAR(100)
+
+Loại file
+file_size
+BIGINT
+
+Kích thước
+storage_path
+VARCHAR(255)
+
+Đường dẫn
+created_at
+DATETIME
+
+Ngày tạo
+
+Cơ sở dữ liệu được thiết kế theo mô hình quan hệ, đảm bảo tính toàn vẹn dữ liệu thông qua các khóa chính và khóa ngoại.
+Các bảng được tổ chức hợp lý nhằm hỗ trợ hiệu quả các chức năng chính như quản lý người dùng, đặt lịch khám, quản lý hồ sơ bệnh án và kê đơn thuốc.
+Ngoài ra, hệ thống có thể mở rộng thêm các bảng phục vụ bảo mật và logging, tuy nhiên không trình bày chi tiết trong phạm vi đề tài.
+
+
+Kiến trúc hệ thống
+Hệ thống được xây dựng với mô hình 3 lớp theo kiến trúc Client–Server, trong đó người dùng tương tác với hệ thống thông qua trình duyệt web.
+Client (Frontend): 
+Trình duyệt (Browser) 
+Giao diện xây dựng bằng Next.js + Tailwind CSS 
+Server (Backend): 
+Next.js API Routes / Server Actions 
+Xử lý logic nghiệp vụ (đặt lịch, xác thực, quản lý dữ liệu) 
+Database: 
+MySQL 
+Lưu trữ dữ liệu người dùng, bác sĩ, lịch khám, hồ sơ bệnh án
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+KẾT QUẢ
+FRONT-END
+BACK-END
+Kiến trúc Backend
+Backend của hệ thống được xây dựng bằng framework Next.js theo mô hình fullstack, trong đó các API được triển khai thông qua API Routes.
+Hệ thống áp dụng mô hình MVC nhằm tách biệt các thành phần xử lý dữ liệu, logic nghiệp vụ và giao diện.
+Cấu trúc backend gồm các thành phần chính:
+Controller: xử lý request từ client
+Service: xử lý logic nghiệp vụ
+Model: tương tác với cơ sở dữ liệu MySQL
+Việc phân chia này giúp hệ thống dễ bảo trì, mở rộng và đảm bảo tính rõ ràng trong quá trình phát triển.
+Đăng ký tài khoản
+Mô tả:Chức năng cho phép người dùng tạo tài khoản bệnh nhân để sử dụng hệ thống.
+API:POST /api/auth/register
+Xử lý:
+Kiểm tra dữ liệu bắt buộc (`username`, `password`, `full_name`).  
+Chuẩn hóa chuỗi nhập vào (`trim`).  
+Mã hóa mật khẩu bằng `bcrypt`.  
+Lưu vào bảng `users` với `role = 'patient'`.  
+Bắt lỗi trùng dữ liệu (`ER_DUP_ENTRY`).
+Đăng nhập hệ thống
+Mô tả:Cho phép người dùng đăng nhập và nhận token để truy cập các API bảo vệ.
+API:POST /api/auth/login
+Xử lý:
+Kiểm tra tần suất đăng nhập (rate limit).  
+Kiểm tra `username`, `password`.  
+Truy vấn user theo `username`.  
+So sánh mật khẩu bằng `bcrypt.compare`.  
+Kiểm tra trạng thái tài khoản (`active`).  
+Tạo `access token` và `refresh token`.  
+Ghi log vào `audit_logs`.
+
+
+
+
+
+Đặt lịch khám
+Mô tả:Bệnh nhân chọn slot khám còn trống và tạo lịch hẹn.
+API:POST /api/patient/appointments
+Xử lý:
+Xác thực vai trò `patient`.  
+Validate `slot_id`.  
+Mở transaction và lock slot (`FOR UPDATE`).  
+Kiểm tra slot hợp lệ (chưa đầy, chưa đóng, chưa quá giờ).  
+Kiểm tra bệnh nhân không bị trùng giờ khám.  
+Tăng `booked_count`, cập nhật trạng thái `full` nếu cần.  
+Tạo bản ghi `appointments` trạng thái `pending`.  
+Commit transaction.
+
+
+
+
+

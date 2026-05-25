@@ -1,0 +1,265 @@
+.page {
+  color: #0f172a;
+}
+
+.title {
+  margin: 0 0 12px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 12px;
+}
+
+.leftCard,
+.rightCard {
+  background: #fff;
+  border: 1px solid #cfe4ff;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.subTitle {
+  margin: 0 0 10px;
+}
+
+.filterRow {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.filterLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a8a;
+}
+
+.filterSelect {
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #f8fbff;
+  padding: 10px;
+  width: 100%;
+}
+
+.listWrap {
+  display: grid;
+  gap: 8px;
+  max-height: 74vh;
+  overflow: auto;
+}
+
+.listItem {
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.listItemActive {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.itemTitle {
+  font-weight: 700;
+}
+
+.itemMeta {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.infoGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.block,
+.blockWide {
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.blockWide {
+  grid-column: 1 / -1;
+}
+
+.blockTitle {
+  margin: 0 0 2px;
+  color: #1e3a8a;
+}
+
+.topRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.versionWrap {
+  min-width: 260px;
+  flex: 1;
+}
+
+.smallMuted {
+  color: #64748b;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.actionRow {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.actionButton {
+  border: 1px solid #60a5fa;
+  border-radius: 10px;
+  background: #3b82f6;
+  color: #fff;
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.actionButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.actionDanger {
+  border-color: #ef4444;
+  background: #ef4444;
+}
+
+.actionGhost {
+  border-color: #cbd5e1;
+  background: #fff;
+  color: #334155;
+}
+
+.editForm {
+  display: grid;
+  gap: 8px;
+}
+
+.prescriptionRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 8px;
+}
+
+.textInput {
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+  width: 100%;
+}
+
+.textarea {
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+  width: 100%;
+  resize: vertical;
+}
+
+.medicineList {
+  display: grid;
+  gap: 6px;
+}
+
+.medicineItem {
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+}
+
+.empty {
+  color: #64748b;
+}
+
+.lockHint {
+  margin-top: 8px;
+  color: #9a3412;
+  font-size: 13px;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 30;
+}
+
+.modalCard {
+  width: min(420px, 100%);
+  background: #fff;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.modalTitle {
+  margin: 0;
+  color: #0f172a;
+}
+
+.modalText {
+  margin: 0;
+  color: #334155;
+}
+
+.modalActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .listWrap {
+    max-height: none;
+  }
+
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .blockWide {
+    grid-column: auto;
+  }
+
+  .topRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .prescriptionRow {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,136 @@
+.page {
+  min-height: 100vh;
+  background: #f6f8fc;
+  color: #172033;
+}
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 20px 46px;
+}
+
+.hero {
+  border-radius: 16px;
+  padding: 18px;
+  background: linear-gradient(135deg, #0b8fd9, #1f6fb2);
+  color: #fff;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 34px);
+}
+
+.sub {
+  margin: 8px 0 0;
+  opacity: 0.96;
+}
+
+.filters {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 240px 240px;
+  gap: 10px;
+}
+
+.control {
+  border: none;
+  border-radius: 10px;
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.control::placeholder {
+  color: #64748b;
+}
+
+.control option {
+  color: #0f172a;
+}
+
+.section {
+  margin-top: 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.card {
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.card:hover {
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+}
+
+.avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #cbd5e1;
+  background: #f1f5f9;
+}
+
+.cardBody {
+  display: grid;
+  gap: 6px;
+}
+
+.cardTitle {
+  margin: 0;
+  color: #0f172a;
+}
+
+.cardMeta {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+}
+
+.cardDesc {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+}
+
+.cardCta {
+  margin-top: 4px;
+  color: #0b5fff;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.empty {
+  margin: 0;
+  color: #64748b;
+}
+
+@media (max-width: 860px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+  .card {
+    grid-template-columns: 1fr;
+  }
+}

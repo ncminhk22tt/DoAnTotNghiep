@@ -1,0 +1,45 @@
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.itemWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sep {
+  color: #94a3b8;
+}
+
+.link,
+.current {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.link {
+  color: #22b8cf;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.current {
+  color: #111827;
+  font-weight: 500;
+}
+
+.homeIcon {
+  width: 18px;
+  height: 18px;
+  color: #22b8cf;
+}

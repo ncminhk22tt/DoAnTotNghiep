@@ -1,0 +1,413 @@
+.page {
+  min-height: 100vh;
+  background: #f6f8fc;
+  color: #172033;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  display: grid;
+  gap: 12px;
+}
+
+.topBar {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.topBarRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.authWrap {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.authState {
+  font-size: 13px;
+  color: #334155;
+}
+
+.authBtn {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.breadcrumbs {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.title {
+  margin: 6px 0 0;
+  color: #0b8fd9;
+  font-size: clamp(22px, 3vw, 34px);
+}
+
+.bookingCard {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.left {
+  border-right: 1px solid #e5e7eb;
+  padding-right: 12px;
+}
+
+.leftTop {
+  display: flex;
+  gap: 12px;
+}
+
+.avatar {
+  width: 94px;
+  height: 94px;
+  border-radius: 50%;
+  border: 1px solid #cbd5e1;
+  object-fit: cover;
+  background: #f1f5f9;
+}
+
+.doctorName {
+  margin: 0;
+  color: #0b8fd9;
+  font-size: 38px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.doctorSub {
+  margin: 4px 0 0;
+  color: #334155;
+}
+
+.doctorInfo {
+  margin: 8px 0 0;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.doctorMeta {
+  margin-top: 8px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.assistantBtn {
+  margin-top: 10px;
+  border: 1px solid #67c6de;
+  color: #0ea5c6;
+  border-radius: 999px;
+  background: #f5fdff;
+  padding: 8px 14px;
+  width: fit-content;
+}
+
+.reviewBtn {
+  margin-top: 8px;
+  border: 1px solid #0b8fd9;
+  color: #0b8fd9;
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 8px 14px;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.right {
+  display: grid;
+  gap: 10px;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.dateTitle {
+  margin: 0;
+  font-size: 32px;
+  color: #2563eb;
+}
+
+.dateInput {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.label {
+  margin: 0;
+  color: #1e293b;
+  font-weight: 800;
+}
+
+.slotGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.slotBtn {
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #f3f4f6;
+  color: #111827;
+  padding: 12px 8px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.slotActive {
+  border-color: #0ea5e9;
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.slotDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.slotFull {
+  opacity: 0.75;
+}
+
+.descText {
+  margin: 0;
+  color: #334155;
+}
+
+.divider {
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.bookBtn {
+  border: none;
+  border-radius: 8px;
+  background: #0d9488;
+  color: #fff;
+  font-weight: 700;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.loginNowBtn {
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #2563eb;
+  font-weight: 700;
+  padding: 9px 12px;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.successText {
+  margin: 0;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.doctorList {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.doctorItems {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.doctorBtn {
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.doctorBtnActive {
+  border-color: #0ea5e9;
+  background: #f0f9ff;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.linkBtn {
+  text-decoration: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #172033;
+  padding: 10px 12px;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 50;
+}
+
+.modalCard {
+  width: min(100%, 560px);
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #dbe3ef;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.reviewModalCard {
+  width: min(100%, 640px);
+  max-height: min(80vh, 720px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #dbe3ef;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.modalTitle {
+  margin: 0 0 2px;
+  color: #0f172a;
+}
+
+.reviewList {
+  display: grid;
+  gap: 10px;
+}
+
+.reviewItem {
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
+.reviewLine {
+  margin: 0;
+  color: #0f172a;
+}
+
+.formLabel {
+  font-size: 13px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.formInput,
+.formTextArea {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+}
+
+.formTextArea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.errorText {
+  margin: 0;
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.modalActions {
+  margin-top: 4px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancelBtn {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.confirmBtn {
+  border: none;
+  border-radius: 8px;
+  background: #0d9488;
+  color: #fff;
+  font-weight: 700;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+@media (max-width: 1000px) {
+  .bookingCard {
+    grid-template-columns: 1fr;
+  }
+
+  .left {
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+    padding-right: 0;
+    padding-bottom: 12px;
+  }
+
+  .doctorItems {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .topBarRow {
+    flex-direction: column;
+  }
+
+  .authWrap {
+    width: 100%;
+    justify-items: start;
+  }
+
+  .slotGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .doctorItems {
+    grid-template-columns: 1fr;
+  }
+}
