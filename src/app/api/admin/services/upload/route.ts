@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserFromRequest } from "@/lib/requestAuth";
-import fs from "fs/promises";
-import path from "path";
-import crypto from "crypto";
+import { uploadImageBuffer } from "@/lib/cloudinary";
 
 const ALLOWED_MIME_TYPES = new Set([
   "image/png",
@@ -13,11 +11,11 @@ const ALLOWED_MIME_TYPES = new Set([
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 
 function detectMimeByExt(fileName: string): string | null {
-  const ext = path.extname(fileName).toLowerCase();
-  if (ext === ".png") return "image/png";
-  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
-  if (ext === ".webp") return "image/webp";
-  if (ext === ".gif") return "image/gif";
+  const ext = fileName.toLowerCase();
+  if (ext.endsWith(".png")) return "image/png";
+  if (ext.endsWith(".jpg") || ext.endsWith(".jpeg")) return "image/jpeg";
+  if (ext.endsWith(".webp")) return "image/webp";
+  if (ext.endsWith(".gif")) return "image/gif";
   return null;
 }
 
@@ -26,7 +24,7 @@ export async function POST(req: NextRequest) {
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "admin") {
       return NextResponse.json(
-        { success: false, message: "Không có quyền truy cập" },
+        { success: false, message: "Khong co quyen truy cap" },
         { status: 403 }
       );
     }
@@ -36,14 +34,14 @@ export async function POST(req: NextRequest) {
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
-        { success: false, message: "Không tìm thấy file" },
+        { success: false, message: "Khong tim thay file" },
         { status: 400 }
       );
     }
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { success: false, message: "File vượt quá 2MB" },
+        { success: false, message: "File vuot qua 2MB" },
         { status: 400 }
       );
     }
@@ -51,44 +49,26 @@ export async function POST(req: NextRequest) {
     const mimeType = detectMimeByExt(file.name);
     if (!mimeType || !ALLOWED_MIME_TYPES.has(mimeType)) {
       return NextResponse.json(
-        { success: false, message: "Chỉ chấp nhận file ảnh (png, jpg, webp, gif)" },
+        { success: false, message: "Chi chap nhan file anh (png, jpg, webp, gif)" },
         { status: 400 }
       );
     }
 
-    const ext = path.extname(file.name).toLowerCase() || ".jpg";
-    const safeName = `${Date.now()}-${crypto.randomUUID()}${ext}`;
-    const localFolder = path.join(process.cwd(), "uploads", "services");
-    await fs.mkdir(localFolder, { recursive: true });
-    const fullPath = path.join(localFolder, safeName);
-
     const buffer = Buffer.from(await file.arrayBuffer());
-    try {
-      await fs.writeFile(fullPath, buffer);
-    } catch (error) {
-      console.error("Service logo upload failed:", error);
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Khong the luu file tren moi truong deploy hien tai. Can dung storage ngoai (S3, Cloudinary, Vercel Blob) hoac local server co writable disk.",
-        },
-        { status: 500 }
-      );
-    }
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const publicUrl = `${appUrl.replace(/\/$/, "")}/uploads/services/${safeName}`;
+    const publicUrl = await uploadImageBuffer(buffer, "services", file.name);
 
     return NextResponse.json({
       success: true,
-      message: "Upload thành công",
+      message: "Upload thanh cong",
       data: { url: publicUrl },
     });
   } catch (error) {
     console.error("Service logo upload route failed:", error);
     return NextResponse.json(
-      { success: false, message: "Lỗi server" },
+      {
+        success: false,
+        message: error instanceof Error ? error.message : "Loi server",
+      },
       { status: 500 }
     );
   }

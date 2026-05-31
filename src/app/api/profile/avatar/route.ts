@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ResultSetHeader } from "mysql2";
 import { db } from "@/lib/db";
 import { getAuthUserFromRequest } from "@/lib/requestAuth";
-import { saveBase64File } from "@/lib/storageService";
+import { uploadImageBase64 } from "@/lib/cloudinary";
 
 type UploadAvatarBody = {
   file_name?: unknown;
@@ -40,14 +40,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let saved;
+    let avatarUrl: string;
     try {
-      saved = await saveBase64File({
-        base64,
-        originalName: fileName,
-        folder: "avatars",
-        maxSizeBytes: 2 * 1024 * 1024,
-      });
+      avatarUrl = await uploadImageBase64(base64, "avatars");
     } catch (error) {
       return NextResponse.json(
         { success: false, message: error instanceof Error ? error.message : "Tep khong hop le" },
@@ -55,20 +50,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const rawPath = saved.storagePath.replace(/^\/+/, "");
-    const avatarPath = `/api/storage/${rawPath}`;
-
-    await db.execute<ResultSetHeader>(
-      `UPDATE users SET avatar = ? WHERE id = ?`,
-      [avatarPath, authUser.id]
-    );
+    await db.execute<ResultSetHeader>(`UPDATE users SET avatar = ? WHERE id = ?`, [
+      avatarUrl,
+      authUser.id,
+    ]);
 
     return NextResponse.json({
       success: true,
       message: "Upload avatar thanh cong",
       data: {
-        avatar: avatarPath,
-        avatar_url: `${(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "")}${avatarPath}`,
+        avatar: avatarUrl,
+        avatar_url: avatarUrl,
       },
     });
   } catch {
