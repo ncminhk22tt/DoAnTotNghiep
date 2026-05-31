@@ -44,6 +44,7 @@ export function proxy(req: NextRequest) {
     pathname.startsWith("/api/auth/reset-password") ||
     pathname.startsWith("/api/auth/refresh") ||
     pathname.startsWith("/api/system/reminders/appointments") ||
+    pathname.startsWith("/api/debug/") ||
     pathname.startsWith("/api/test") ||
     pathname.startsWith("/api/public/")
   ) {
