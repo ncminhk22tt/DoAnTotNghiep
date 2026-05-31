@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserFromRequest } from "@/lib/requestAuth";
 import { uploadImageBuffer } from "@/lib/cloudinary";
 
+export const runtime = "nodejs";
+
 const ALLOWED_MIME_TYPES = new Set([
   "image/png",
   "image/jpeg",

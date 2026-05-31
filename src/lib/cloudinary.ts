@@ -10,14 +10,26 @@ cloudinary.config({
   api_secret: apiSecret,
 });
 
+function assertCloudinaryConfigured() {
+  const missing = [
+    ["CLOUDINARY_CLOUD_NAME", cloudName],
+    ["CLOUDINARY_API_KEY", apiKey],
+    ["CLOUDINARY_API_SECRET", apiSecret],
+  ]
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missing.length > 0) {
+    throw new Error(`Cloudinary chua duoc cau hinh: thieu ${missing.join(", ")}`);
+  }
+}
+
 export async function uploadImageBuffer(
   buffer: Buffer,
   folder: string,
   fileName?: string
 ): Promise<string> {
-  if (!cloudName || !apiKey || !apiSecret) {
-    throw new Error("Cloudinary chua duoc cau hinh");
-  }
+  assertCloudinaryConfigured();
 
   const mimeType = fileName?.toLowerCase().endsWith(".png")
     ? "image/png"
@@ -40,9 +52,7 @@ export async function uploadImageBase64(
   base64: string,
   folder: string
 ): Promise<string> {
-  if (!cloudName || !apiKey || !apiSecret) {
-    throw new Error("Cloudinary chua duoc cau hinh");
-  }
+  assertCloudinaryConfigured();
 
   const result = await cloudinary.uploader.upload(base64, {
     folder,
