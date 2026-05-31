@@ -1,36 +1,30 @@
 import jwt from "jsonwebtoken";
 import { User } from "@/types/auth";
 
-// Day la trung tam ky/xác thực JWT.
-// Ban chi can nho 3 ham chinh:
-// - generateToken: tao access token.
-// - generateRefreshToken: tao refresh token.
-// - verifyToken / verifyRefreshToken: xác thực token.
-
-// Doc bien moi truong bat buoc cho viec ky JWT
-const JWT_SECRET: string = (() => {
+// JWT helper trung tam. Secret duoc doc lazy de build khong fail khi env chua co.
+function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error("Missing JWT_SECRET environment variable");
   }
   return secret;
-})();
+}
 
-// Cau hinh token mac dinh
+function getJwtRefreshSecret(): string {
+  return process.env.JWT_REFRESH_SECRET || getJwtSecret();
+}
+
 const JWT_EXPIRES_IN: jwt.SignOptions["expiresIn"] =
   (process.env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "1d";
 const JWT_ISSUER = process.env.JWT_ISSUER || "medical-booking";
 const JWT_AUDIENCE = process.env.JWT_AUDIENCE || "medical-booking-users";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || JWT_SECRET;
 const JWT_REFRESH_EXPIRES_IN: jwt.SignOptions["expiresIn"] =
   (process.env.JWT_REFRESH_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "14d";
 
-// Du lieu can thiet de nhan dien user trong token
 export type JWTPayload = Pick<User, "id" | "username" | "role">;
 type RefreshPayload = JWTPayload & { token_type: "refresh"; jti: string };
 const ROLES: ReadonlyArray<JWTPayload["role"]> = ["patient", "doctor", "admin"];
 
-// Kiem trả decoded token co dung shape mong muon hay không
 function isJWTPayload(value: unknown): value is JWTPayload {
   if (!value || typeof value !== "object") {
     return false;
@@ -45,10 +39,8 @@ function isJWTPayload(value: unknown): value is JWTPayload {
   );
 }
 
-// Tao JWT cho user sau khi đăng nhập thanh cong
 export function generateToken(payload: JWTPayload) {
-  // Access token: token chinh de goi API.
-  return jwt.sign(payload, JWT_SECRET, {
+  return jwt.sign(payload, getJwtSecret(), {
     expiresIn: JWT_EXPIRES_IN,
     algorithm: "HS256",
     issuer: JWT_ISSUER,
@@ -57,9 +49,8 @@ export function generateToken(payload: JWTPayload) {
 }
 
 export function generateRefreshToken(payload: JWTPayload, jti: string) {
-  // Refresh token: token doi access token moi khi access het han.
   const refreshPayload: RefreshPayload = { ...payload, token_type: "refresh", jti };
-  return jwt.sign(refreshPayload, JWT_REFRESH_SECRET, {
+  return jwt.sign(refreshPayload, getJwtRefreshSecret(), {
     expiresIn: JWT_REFRESH_EXPIRES_IN,
     algorithm: "HS256",
     issuer: JWT_ISSUER,
@@ -67,14 +58,13 @@ export function generateRefreshToken(payload: JWTPayload, jti: string) {
   });
 }
 
-// Xac thuc va trả payload hop le, sai thi trả null
 export function verifyToken(token: string): JWTPayload | null {
   try {
     if (!token || !token.trim()) {
       return null;
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET, {
+    const decoded = jwt.verify(token, getJwtSecret(), {
       algorithms: ["HS256"],
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
@@ -96,14 +86,13 @@ export function verifyRefreshToken(token: string): (JWTPayload & { jti: string }
       return null;
     }
 
-    const decoded = jwt.verify(token, JWT_REFRESH_SECRET, {
+    const decoded = jwt.verify(token, getJwtRefreshSecret(), {
       algorithms: ["HS256"],
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
     });
 
     if (!decoded || typeof decoded !== "object") return null;
-    // Check them token_type + jti de chan nham access token.
     const candidate = decoded as Partial<RefreshPayload>;
     const jti = typeof candidate.jti === "string" ? candidate.jti : null;
     if (candidate.token_type !== "refresh" || !jti) return null;
