@@ -192,7 +192,6 @@ export async function POST(req: NextRequest) {
     await connection.beginTransaction();
     transactionStarted = true;
     transactionStarted = true;
-    transactionStarted = true;
 
     // FOR UPDATE de khoa dong slot hien tai trong trảnsaction.
     const [slotRows] = await connection.execute<SlotRow[]>(
@@ -468,6 +467,7 @@ export async function PATCH(req: NextRequest) {
 
     // Huy lich cung dung trảnsaction de trảnh sai booked_count.
     await connection.beginTransaction();
+    transactionStarted = true;
 
     const [appointmentRows] = await connection.execute<AppointmentRow[]>(
       `SELECT id, user_id, slot_id, status

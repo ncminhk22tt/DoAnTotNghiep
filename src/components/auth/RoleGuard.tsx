@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getAuthUser } from "@/lib/authClient";
 import { UserRole } from "@/types/frontend-auth";
@@ -12,11 +12,9 @@ type RoleGuardProps = {
 
 export function RoleGuard({ allow, children }: RoleGuardProps) {
   const router = useRouter();
-  const [ready, setReady] = useState(false);
+  const user = getAuthUser();
 
   useEffect(() => {
-    const user = getAuthUser();
-
     if (!user) {
       router.replace("/login");
       return;
@@ -26,13 +24,10 @@ export function RoleGuard({ allow, children }: RoleGuardProps) {
       if (user.role === "admin") router.replace("/admin");
       else if (user.role === "doctor") router.replace("/doctor");
       else router.replace("/patient");
-      return;
     }
+  }, [allow, router, user]);
 
-    setReady(true);
-  }, [allow, router]);
-
-  if (!ready) {
+  if (!user || user.role !== allow) {
     return <div style={{ padding: 24 }}>Đang kiểm tra quyền truy cập...</div>;
   }
 

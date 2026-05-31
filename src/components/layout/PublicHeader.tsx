@@ -32,9 +32,10 @@ export function PublicHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [personalHref, setPersonalHref] = useState("/login");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [, forceAuthRefresh] = useState(0);
+  const personalHref = resolvePersonalHref();
+  const isLoggedIn = personalHref !== "/login";
+  const authUser = resolveAuthUser();
 
   function goPersonal(e?: MouseEvent) {
     e?.preventDefault();
@@ -43,13 +44,9 @@ export function PublicHeader() {
 
   useEffect(() => {
     const updateAuthState = () => {
-      const nextPersonalHref = resolvePersonalHref();
-      setPersonalHref(nextPersonalHref);
-      setIsLoggedIn(nextPersonalHref !== "/login");
-      setAuthUser(resolveAuthUser());
+      forceAuthRefresh((value) => value + 1);
     };
 
-    updateAuthState();
     window.addEventListener("storage", updateAuthState);
     window.addEventListener("focus", updateAuthState);
     return () => {
@@ -57,13 +54,6 @@ export function PublicHeader() {
       window.removeEventListener("focus", updateAuthState);
     };
   }, []);
-
-  useEffect(() => {
-    const nextPersonalHref = resolvePersonalHref();
-    setPersonalHref(nextPersonalHref);
-    setIsLoggedIn(nextPersonalHref !== "/login");
-    setAuthUser(resolveAuthUser());
-  }, [pathname]);
 
   if (pathname !== "/") return null;
 
@@ -98,17 +88,14 @@ export function PublicHeader() {
             <>
               <NotificationBell user={authUser} />
               <Link href={personalHref} className={styles.profileBtn} onClick={goPersonal}>Cá nhân</Link>
-              <button
-                type="button"
-                className={styles.logoutBtn}
-                onClick={() => {
-                  clearAllAuthSessions();
-                  setIsLoggedIn(false);
-                  setPersonalHref("/login");
-                  setAuthUser(null);
-                  router.push("/login");
-                }}
-              >
+                <button
+                  type="button"
+                  className={styles.logoutBtn}
+                  onClick={() => {
+                    clearAllAuthSessions();
+                    router.push("/login");
+                  }}
+                >
                 Đăng xuất
               </button>
             </>
@@ -177,9 +164,6 @@ export function PublicHeader() {
               onClick={() => {
                 clearAllAuthSessions();
                 setIsMenuOpen(false);
-                setIsLoggedIn(false);
-                setPersonalHref("/login");
-                setAuthUser(null);
                 router.push("/login");
               }}
             >

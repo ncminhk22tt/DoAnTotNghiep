@@ -49,6 +49,7 @@ export default function DoctorDashboardPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, []);
 
@@ -100,4 +101,3 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
-

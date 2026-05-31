@@ -223,7 +223,10 @@ export async function PUT(
         ...(currentDoctor.specialty_id ? [currentDoctor.specialty_id] : []),
         ...currentServiceRows
           .map((row) => row.specialty_id)
-          .filter((specialtyId): specialtyId is number => Number.isInteger(specialtyId) && specialtyId > 0),
+          .filter(
+            (specialtyId): specialtyId is number =>
+              specialtyId !== null && Number.isInteger(specialtyId) && specialtyId > 0
+          ),
       ])
     );
 

@@ -219,7 +219,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const setClauses = ["service_id = ?", "work_date = ?", "price = ?"];
-    const params: unknown[] = [targetServiceId, targetWorkDate, price];
+    const params: Array<string | number | null> = [targetServiceId, targetWorkDate, price];
 
     if (hasMaxPatients) {
       setClauses.push("max_patients = ?");

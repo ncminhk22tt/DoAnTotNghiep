@@ -26,7 +26,7 @@ interface DoctorServiceRow extends RowDataPacket {
   service_id: number;
 }
 
-interface SlotRow extends ScheduleSlot {}
+type SlotRow = ScheduleSlot;
 
 interface AppointmentCheckRow extends RowDataPacket {
   id: number;
