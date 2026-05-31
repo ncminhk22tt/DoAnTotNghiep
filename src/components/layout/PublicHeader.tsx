@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser } from "@/lib/authClient";
 
 export function PublicHeader() {
   const [mounted, setMounted] = useState(false);
@@ -25,10 +25,10 @@ export function PublicHeader() {
         </Link>
 
         <nav className="flex items-center gap-4 text-sm">
-          <Link href="/services" className="text-[var(--text-secondary)] transition-colors hover:text-[var(--primary-color)]">
+          <Link href="/dich-vu" className="text-[var(--text-secondary)] transition-colors hover:text-[var(--primary-color)]">
             Dịch vụ
           </Link>
-          <Link href="/doctors" className="text-[var(--text-secondary)] transition-colors hover:text-[var(--primary-color)]">
+          <Link href="/bac-si" className="text-[var(--text-secondary)] transition-colors hover:text-[var(--primary-color)]">
             Bác sĩ
           </Link>
           <Link href={personalHref} className="rounded-full border border-[var(--border-color)] px-4 py-2 font-medium transition-colors hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]">

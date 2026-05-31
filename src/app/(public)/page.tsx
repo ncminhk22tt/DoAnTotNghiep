@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
+import { resolveSafeImageSrc } from "@/lib/imageSrc";
 import styles from "./page.module.css";
 
 type Specialty = {
@@ -274,7 +275,7 @@ export default function HomePage() {
                 onClick={() => router.push(`/dich-vu/${slugify(specialty.name)}-s${specialty.id}`)}
               >
                 <span className={styles.specialtyIcon}>
-                  {specialty.logo_url ? <img src={specialty.logo_url} alt={specialty.name} /> : "CK"}
+                  {specialty.logo_url ? <img src={resolveSafeImageSrc(specialty.logo_url, "/file.svg")} alt={specialty.name} /> : "CK"}
                 </span>
                 <h3 className={styles.specialtyName}>{specialty.name}</h3>
                 <p className={styles.specialtyDesc}>
@@ -308,7 +309,7 @@ export default function HomePage() {
                         onClick={() => router.push(`/dich-vu/${slugify(specialty.name)}-s${specialty.id}`)}
                       >
                         <span className={styles.specialtyIcon}>
-                          {specialty.logo_url ? <img src={specialty.logo_url} alt={specialty.name} /> : "CK"}
+                          {specialty.logo_url ? <img src={resolveSafeImageSrc(specialty.logo_url, "/file.svg")} alt={specialty.name} /> : "CK"}
                         </span>
                         <h3 className={styles.specialtyName}>{specialty.name}</h3>
                         <p className={styles.specialtyDesc}>
@@ -356,7 +357,7 @@ export default function HomePage() {
               <article key={service.id} className={styles.serviceCard}>
                 <div className={styles.serviceImageWrapper}>
                   <img
-                    src={service.logo_url || "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&h=300&fit=crop"}
+                    src={resolveSafeImageSrc(service.logo_url, "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&h=300&fit=crop")}
                     alt={service.name}
                     className={styles.serviceImage}
                   />

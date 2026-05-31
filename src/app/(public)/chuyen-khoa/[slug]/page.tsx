@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
 import { getAccessToken, getAuthUser } from "@/lib/authClient";
+import { resolveSafeImageSrc } from "@/lib/imageSrc";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { useToast } from "@/components/ui/ToastProvider";
 import styles from "./page.module.css";
@@ -121,15 +122,7 @@ function todayYMD() {
 }
 
 function resolveAvatarSrc(avatar: string | null) {
-  if (!avatar) return DOCTOR_AVATAR_PLACEHOLDER;
-  const src = avatar.trim();
-  if (!src) return DOCTOR_AVATAR_PLACEHOLDER;
-  const isValid =
-    src.startsWith("/") ||
-    src.startsWith("http://") ||
-    src.startsWith("https://") ||
-    src.startsWith("data:image/");
-  return isValid ? src : DOCTOR_AVATAR_PLACEHOLDER;
+  return resolveSafeImageSrc(avatar, DOCTOR_AVATAR_PLACEHOLDER);
 }
 
 function isSlotPastNow(workDate: string, startTime: string) {

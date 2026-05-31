@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
+import { resolveSafeImageSrc } from "@/lib/imageSrc";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import styles from "./page.module.css";
 
@@ -240,7 +241,7 @@ export default function ServiceListingPage() {
                       {group.specialtyLogoUrl && (
                         <div className={styles.groupLogoContainer}>
                           <img
-                            src={group.specialtyLogoUrl}
+                            src={resolveSafeImageSrc(group.specialtyLogoUrl, "/file.svg")}
                             alt={group.specialtyName}
                             className={styles.groupLogo}
                           />
@@ -265,7 +266,7 @@ export default function ServiceListingPage() {
                           {service.logo_url && (
                             <div className={styles.serviceLogoContainer}>
                               <img
-                                src={service.logo_url}
+                                src={resolveSafeImageSrc(service.logo_url, "/file.svg")}
                                 alt={service.name}
                                 className={styles.serviceLogo}
                               />

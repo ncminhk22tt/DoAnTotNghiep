@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
+import { resolveSafeImageSrc } from "@/lib/imageSrc";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import styles from "./page.module.css";
@@ -10,15 +11,7 @@ import styles from "./page.module.css";
 const DOCTOR_AVATAR_PLACEHOLDER = "/doctor-avatar-placeholder.svg";
 
 function resolveAvatarSrc(avatar: string | null) {
-  if (!avatar) return DOCTOR_AVATAR_PLACEHOLDER;
-  const src = avatar.trim();
-  if (!src) return DOCTOR_AVATAR_PLACEHOLDER;
-  const isValid =
-    src.startsWith("/") ||
-    src.startsWith("http://") ||
-    src.startsWith("https://") ||
-    src.startsWith("data:image/");
-  return isValid ? src : DOCTOR_AVATAR_PLACEHOLDER;
+  return resolveSafeImageSrc(avatar, DOCTOR_AVATAR_PLACEHOLDER);
 }
 
 type Doctor = {

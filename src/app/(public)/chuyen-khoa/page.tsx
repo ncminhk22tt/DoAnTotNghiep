@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "@/lib/apiClient";
+import { resolveSafeImageSrc } from "@/lib/imageSrc";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import styles from "./page.module.css";
@@ -135,7 +136,7 @@ export default function SpecialtyListingPage() {
                 >
                   <div className={styles.icon}>
                     {s.logo_url ? (
-                      <img src={s.logo_url} alt={s.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={resolveSafeImageSrc(s.logo_url, "/file.svg")} alt={s.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       acronym(s.name)
                     )}

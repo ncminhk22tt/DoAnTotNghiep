@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ReactNode, useEffect, useState } from "react";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser } from "@/lib/authClient";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 
 type AppShellProps = {
