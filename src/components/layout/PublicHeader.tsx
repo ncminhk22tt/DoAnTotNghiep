@@ -2,25 +2,71 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getAuthUser } from "@/lib/authClient";
+import {
+  clearAuthSession,
+  getActiveRole,
+  getAuthUser,
+} from "@/lib/authClient";
+import type { AuthUser, UserRole } from "@/types/frontend-auth";
+
+type HeaderSession = {
+  role: UserRole;
+  user: AuthUser;
+};
+
+const ROLE_HOME: Record<UserRole, string> = {
+  admin: "/admin",
+  doctor: "/doctor",
+  patient: "/patient",
+};
+
+const ROLE_LABEL: Record<UserRole, string> = {
+  admin: "Trang admin",
+  doctor: "Cổng bác sĩ",
+  patient: "Tài khoản",
+};
+
+function resolveHeaderSession(): HeaderSession | null {
+  const activeRole = getActiveRole();
+  const roles: UserRole[] = activeRole
+    ? [activeRole, ...(["patient", "doctor", "admin"] as UserRole[]).filter((role) => role !== activeRole)]
+    : ["patient", "doctor", "admin"];
+
+  for (const role of roles) {
+    const user = getAuthUser(role);
+    if (user) {
+      return { role, user };
+    }
+  }
+
+  return null;
+}
 
 export function PublicHeader() {
+  const [session, setSession] = useState<HeaderSession | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState<ReturnType<typeof getAuthUser>>(null);
 
   useEffect(() => {
     setMounted(true);
-    setUser(getAuthUser("patient"));
+    setSession(resolveHeaderSession());
   }, []);
 
-  const isLoggedIn = mounted && !!user;
-  const personalHref = isLoggedIn ? "/patient" : "/login";
-  const displayName = user?.full_name || user?.username || "Tài khoản";
+  function handleLogout() {
+    if (session) {
+      clearAuthSession(session.role);
+      setSession(null);
+    }
+  }
+
+  const isLoggedIn = mounted && !!session;
+  const dashboardHref = session ? ROLE_HOME[session.role] : "/login";
+  const dashboardLabel = session ? ROLE_LABEL[session.role] : "Đăng nhập";
+  const displayName = session?.user.full_name || session?.user.username;
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--border-color)] bg-[var(--surface-color)]/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-lg font-semibold text-[var(--primary-color)]">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
+        <Link href="/" className="whitespace-nowrap text-lg font-semibold text-[var(--primary-color)]">
           Medical Booking
         </Link>
 
@@ -31,9 +77,22 @@ export function PublicHeader() {
           <Link href="/bac-si" className="text-[var(--text-secondary)] transition-colors hover:text-[var(--primary-color)]">
             Bác sĩ
           </Link>
-          <Link href={personalHref} className="rounded-full border border-[var(--border-color)] px-4 py-2 font-medium transition-colors hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]">
-            {isLoggedIn ? displayName : "Đăng nhập"}
+          <Link
+            href={dashboardHref}
+            className="rounded-full border border-[var(--border-color)] px-4 py-2 font-medium transition-colors hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
+            title={displayName}
+          >
+            {dashboardLabel}
           </Link>
+          {isLoggedIn ? (
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-full border border-red-200 px-4 py-2 font-medium text-red-600 transition-colors hover:border-red-400 hover:bg-red-50"
+            >
+              Đăng xuất
+            </button>
+          ) : null}
         </nav>
       </div>
     </header>

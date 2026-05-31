@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/ToastProvider";
-import { PublicHeader } from "@/components/layout/PublicHeader";
-import { FloatingChatWidget } from "@/components/chat/FloatingChatWidget";
+import { AppChrome } from "@/components/layout/AppChrome";
 
 export const metadata: Metadata = {
   title: "---",
@@ -24,9 +23,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ToastProvider>
-          <PublicHeader />
-          {children}
-          <FloatingChatWidget />
+          <AppChrome>{children}</AppChrome>
         </ToastProvider>
       </body>
     </html>
