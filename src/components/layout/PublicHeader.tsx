@@ -1,100 +1,193 @@
-"use client";
+﻿"use client";
 
+import { MouseEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import {
-  clearAuthSession,
-  getActiveRole,
-  getAuthUser,
-} from "@/lib/authClient";
-import type { AuthUser, UserRole } from "@/types/frontend-auth";
+import { usePathname, useRouter } from "next/navigation";
+import { clearAllAuthSessions, getActiveRole, getAuthUser } from "@/lib/authClient";
+import type { AuthUser } from "@/types/frontend-auth";
+import { NotificationBell } from "./NotificationBell";
+import styles from "./PublicHeader.module.css";
 
-type HeaderSession = {
-  role: UserRole;
-  user: AuthUser;
-};
+const navItems = [
+  { href: "/", label: "Trang chủ" },
+  { href: "/chuyen-khoa", label: "Chuyên khoa" },
+  { href: "/dich-vu", label: "Dịch vụ" },
+  { href: "/bac-si", label: "Bác sĩ" },
+] as const;
 
-const ROLE_HOME: Record<UserRole, string> = {
-  admin: "/admin",
-  doctor: "/doctor",
-  patient: "/patient",
-};
-
-const ROLE_LABEL: Record<UserRole, string> = {
-  admin: "Trang admin",
-  doctor: "Cổng bác sĩ",
-  patient: "Tài khoản",
-};
-
-function resolveHeaderSession(): HeaderSession | null {
+function resolvePersonalHref() {
+  // Public home page only accepts patient as active signed-in role.
   const activeRole = getActiveRole();
-  const roles: UserRole[] = activeRole
-    ? [activeRole, ...(["patient", "doctor", "admin"] as UserRole[]).filter((role) => role !== activeRole)]
-    : ["patient", "doctor", "admin"];
+  if (activeRole === "patient" && getAuthUser("patient")) return "/patient/appointments";
+  return "/login";
+}
 
-  for (const role of roles) {
-    const user = getAuthUser(role);
-    if (user) {
-      return { role, user };
-    }
-  }
-
+function resolveAuthUser(): AuthUser | null {
+  const activeRole = getActiveRole();
+  if (activeRole === "patient") return getAuthUser("patient");
   return null;
 }
 
 export function PublicHeader() {
-  const [session, setSession] = useState<HeaderSession | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [personalHref, setPersonalHref] = useState("/login");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    setSession(resolveHeaderSession());
-  }, []);
-
-  function handleLogout() {
-    if (session) {
-      clearAuthSession(session.role);
-      setSession(null);
-    }
+  function goPersonal(e?: MouseEvent) {
+    e?.preventDefault();
+    router.push(personalHref === "/patient/appointments" ? "/patient/appointments" : "/login");
   }
 
-  const isLoggedIn = mounted && !!session;
-  const dashboardHref = session ? ROLE_HOME[session.role] : "/login";
-  const dashboardLabel = session ? ROLE_LABEL[session.role] : "Đăng nhập";
-  const displayName = session?.user.full_name || session?.user.username;
+  useEffect(() => {
+    const updateAuthState = () => {
+      const nextPersonalHref = resolvePersonalHref();
+      setPersonalHref(nextPersonalHref);
+      setIsLoggedIn(nextPersonalHref !== "/login");
+      setAuthUser(resolveAuthUser());
+    };
+
+    updateAuthState();
+    window.addEventListener("storage", updateAuthState);
+    window.addEventListener("focus", updateAuthState);
+    return () => {
+      window.removeEventListener("storage", updateAuthState);
+      window.removeEventListener("focus", updateAuthState);
+    };
+  }, []);
+
+  useEffect(() => {
+    const nextPersonalHref = resolvePersonalHref();
+    setPersonalHref(nextPersonalHref);
+    setIsLoggedIn(nextPersonalHref !== "/login");
+    setAuthUser(resolveAuthUser());
+  }, [pathname]);
+
+  if (pathname !== "/") return null;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--border-color)] bg-[var(--surface-color)]/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-        <Link href="/" className="whitespace-nowrap text-lg font-semibold text-[var(--primary-color)]">
-          Medical Booking
+    <header className={styles.header}>
+      <div className={styles.container}>
+        <Link href="/" className={styles.brand}>
+          <span className={styles.brandDot} aria-hidden="true" />
+          <span>Medical Booking</span>
         </Link>
 
-        <nav className="flex items-center gap-4 text-sm">
-          <Link href="/dich-vu" className="text-[var(--text-secondary)] transition-colors hover:text-[var(--primary-color)]">
-            Dịch vụ
-          </Link>
-          <Link href="/bac-si" className="text-[var(--text-secondary)] transition-colors hover:text-[var(--primary-color)]">
-            Bác sĩ
-          </Link>
-          <Link
-            href={dashboardHref}
-            className="rounded-full border border-[var(--border-color)] px-4 py-2 font-medium transition-colors hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
-            title={displayName}
+        <nav className={styles.nav} aria-label="Điều hướng chính">
+          {navItems.map((item) => (
+            (() => {
+              const isActive =
+                pathname === item.href || pathname?.startsWith(`${item.href}/`);
+              return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`${styles.navLink} ${isActive ? styles.active : ""}`}
+            >
+              {item.label}
+            </Link>
+              );
+            })()
+          ))}
+        </nav>
+
+        <div className={styles.actions}>
+          {isLoggedIn ? (
+            <>
+              <NotificationBell user={authUser} />
+              <Link href={personalHref} className={styles.profileBtn} onClick={goPersonal}>Cá nhân</Link>
+              <button
+                type="button"
+                className={styles.logoutBtn}
+                onClick={() => {
+                  clearAllAuthSessions();
+                  setIsLoggedIn(false);
+                  setPersonalHref("/login");
+                  setAuthUser(null);
+                  router.push("/login");
+                }}
+              >
+                Đăng xuất
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className={styles.loginBtn}>Đăng nhập</Link>
+              <Link href="/register" className={styles.registerBtn}>Đăng ký</Link>
+            </>
+          )}
+        </div>
+
+        <div className={styles.mobileControls}>
+          {isLoggedIn ? (
+            <div className={styles.mobileNotice}>
+              <NotificationBell user={authUser} showLabel />
+            </div>
+          ) : (
+            <Link href="/login" className={styles.mobileLoginBtn}>Đăng nhập</Link>
+          )}
+          <button
+            type="button"
+            className={styles.menuButton}
+            aria-label="Mở menu"
+            aria-expanded={isMenuOpen}
+            onClick={() => setIsMenuOpen((v) => !v)}
           >
-            {dashboardLabel}
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
+      </div>
+
+      {isMenuOpen ? (
+        <div className={styles.mobileMenu}>
+          {navItems.map((item) => (
+            (() => {
+              const isActive =
+                pathname === item.href || pathname?.startsWith(`${item.href}/`);
+              return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`${styles.mobileItem} ${isActive ? styles.active : ""}`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {item.label}
+            </Link>
+              );
+            })()
+          ))}
+          <Link
+            href={personalHref}
+            className={styles.mobileItem}
+            onClick={(e) => {
+              setIsMenuOpen(false);
+              goPersonal(e);
+            }}
+          >
+            Cá nhân
           </Link>
           {isLoggedIn ? (
             <button
               type="button"
-              onClick={handleLogout}
-              className="rounded-full border border-red-200 px-4 py-2 font-medium text-red-600 transition-colors hover:border-red-400 hover:bg-red-50"
+              className={styles.mobileItemButton}
+              onClick={() => {
+                clearAllAuthSessions();
+                setIsMenuOpen(false);
+                setIsLoggedIn(false);
+                setPersonalHref("/login");
+                setAuthUser(null);
+                router.push("/login");
+              }}
             >
               Đăng xuất
             </button>
           ) : null}
-        </nav>
-      </div>
+        </div>
+      ) : null}
     </header>
   );
 }
