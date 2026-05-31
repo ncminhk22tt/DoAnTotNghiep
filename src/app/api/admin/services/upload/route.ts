@@ -63,7 +63,19 @@ export async function POST(req: NextRequest) {
     const fullPath = path.join(localFolder, safeName);
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    await fs.writeFile(fullPath, buffer);
+    try {
+      await fs.writeFile(fullPath, buffer);
+    } catch (error) {
+      console.error("Service logo upload failed:", error);
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Khong the luu file tren moi truong deploy hien tai. Can dung storage ngoai (S3, Cloudinary, Vercel Blob) hoac local server co writable disk.",
+        },
+        { status: 500 }
+      );
+    }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const publicUrl = `${appUrl.replace(/\/$/, "")}/uploads/services/${safeName}`;
@@ -73,7 +85,8 @@ export async function POST(req: NextRequest) {
       message: "Upload thành công",
       data: { url: publicUrl },
     });
-  } catch {
+  } catch (error) {
+    console.error("Service logo upload route failed:", error);
     return NextResponse.json(
       { success: false, message: "Lỗi server" },
       { status: 500 }
