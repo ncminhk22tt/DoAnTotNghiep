@@ -12,10 +12,12 @@ type Profile = {
   email: string | null;
   phone: string | null;
   avatar: string | null;
+  description?: string | null;
+  gender: "male" | "female" | null;
+  birth_year: number | null;
   role: "patient" | "doctor" | "admin";
   status: "active" | "inactive" | "banned";
   created_at: string;
-  description?: string | null;
 };
 
 export default function DoctorProfilePage() {
@@ -28,8 +30,18 @@ export default function DoctorProfilePage() {
     email: "",
     phone: "",
     avatar: "",
+    gender: "male" as "male" | "female",
+    birth_year: "",
     description: "",
   });
+  const [passwordForm, setPasswordForm] = useState({
+    old_password: "",
+    new_password: "",
+    confirm_password: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [activeForm, setActiveForm] = useState<"profile" | "password">("profile");
 
   async function loadProfile() {
     try {
@@ -42,10 +54,12 @@ export default function DoctorProfilePage() {
         email: res.data.email || "",
         phone: res.data.phone || "",
         avatar: res.data.avatar || "",
+        gender: res.data.gender === "female" ? "female" : "male",
+        birth_year: res.data.birth_year ? String(res.data.birth_year) : "",
         description: res.data.description || "",
       });
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Khong the tai profile", "error");
+      showToast(err instanceof Error ? err.message : "Không thể tải hồ sơ", "error");
     } finally {
       setLoading(false);
     }
@@ -53,16 +67,44 @@ export default function DoctorProfilePage() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const normalizedFullName = form.full_name.trim();
+    const wordCount = normalizedFullName.split(/\s+/).filter(Boolean).length;
+    const normalizedPhone = form.phone.trim();
+    const normalizedEmail = form.email.trim().toLowerCase();
+
+    if (!normalizedFullName || !normalizedPhone || !normalizedEmail) {
+      showToast("Vui lòng nhập đầy đủ họ tên, email và số điện thoại", "error");
+      return;
+    }
+    if (wordCount === 0 || wordCount > 50) {
+      showToast("Họ tên phải từ 1 đến 50 từ", "error");
+      return;
+    }
+    if (!normalizedPhone) {
+      showToast("Số điện thoại không được để trống", "error");
+      return;
+    }
+    if (!/^[0-9]{10,15}$/.test(normalizedPhone)) {
+      showToast("Số điện thoại phải chứa 10 đến 15 chữ số", "error");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      showToast("Email không hợp lệ", "error");
+      return;
+    }
+
     try {
       setSaving(true);
       const token = getAccessToken();
       await apiClient.patch(
         "/api/profile",
         {
-          full_name: form.full_name,
-          email: form.email,
-          phone: form.phone,
+          full_name: normalizedFullName,
+          email: normalizedEmail,
+          phone: normalizedPhone,
           avatar: form.avatar,
+          gender: form.gender,
+          birth_year: form.birth_year ? Number(form.birth_year) : null,
           description: form.description,
         },
         token
@@ -78,51 +120,38 @@ export default function DoctorProfilePage() {
         });
       }
 
-      showToast("Cap nhat ho so bac si thanh cong", "success");
+      showToast("Cập nhật hồ sơ bác sĩ thành công", "success");
       await loadProfile();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Cap nhat ho so that bai", "error");
+      showToast(err instanceof Error ? err.message : "Cập nhật hồ sơ thất bại", "error");
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleAvatarFileChange(file: File | null) {
-    if (!file) return;
-    const allowed = ["image/png", "image/jpeg", "image/webp"];
-    if (!allowed.includes(file.type)) {
-      showToast("Avatar chi ho tro png/jpg/webp", "error");
+  async function onChangePassword(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      showToast("Mật khẩu mới và xác nhận mật khẩu không khớp", "error");
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      showToast("Avatar toi da 2MB", "error");
-      return;
-    }
-
-    const base64 = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = String(reader.result || "");
-        const content = result.includes(",") ? result.split(",")[1] : result;
-        resolve(content);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
     try {
+      setChangingPassword(true);
       const token = getAccessToken();
-      const res = await apiClient.post<{ data?: { avatar?: string } }>(
-        "/api/profile/avatar",
-        { file_name: file.name, content_base64: base64 },
+      await apiClient.post(
+        "/api/auth/change-password",
+        {
+          old_password: passwordForm.old_password,
+          new_password: passwordForm.new_password,
+        },
         token
       );
-      if (res?.data?.avatar) {
-        setForm((prev) => ({ ...prev, avatar: res.data?.avatar || prev.avatar }));
-      }
-      showToast("Upload avatar thanh cong", "success");
+      setPasswordForm({ old_password: "", new_password: "", confirm_password: "" });
+      showToast("Đổi mật khẩu thành công", "success");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Khong the upload avatar", "error");
+      showToast(err instanceof Error ? err.message : "Đổi mật khẩu thất bại", "error");
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -130,62 +159,151 @@ export default function DoctorProfilePage() {
     loadProfile();
   }, []);
 
-  if (loading) return <p>Dang tai ho so bac si...</p>;
-  if (!profile) return <p>Khong co du lieu ho so.</p>;
+  if (loading) return <p>Đang tải hồ sơ...</p>;
+  if (!profile) return <p>Không có dữ liệu hồ sơ.</p>;
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, maxWidth: 680 }}>
-      <h2 style={{ marginTop: 0 }}>Ho so bac si</h2>
-      <p style={{ marginTop: 0, color: "#475569" }}>
-        Username: <strong>{profile.username}</strong> | Role: <strong>{profile.role}</strong>
-      </p>
-
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 10 }}>
-        <input
-          value={form.full_name}
-          onChange={(e) => setForm((prev) => ({ ...prev, full_name: e.target.value }))}
-          placeholder="Ho va ten bac si"
-          style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
-        />
-        <input
-          value={form.email}
-          onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-          placeholder="Email"
-          style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
-        />
-        <input
-          value={form.phone}
-          onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
-          placeholder="So dien thoai"
-          style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
-        />
-        <input
-          value={form.avatar}
-          onChange={(e) => setForm((prev) => ({ ...prev, avatar: e.target.value }))}
-          placeholder="Avatar URL/ten file"
-          style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
-        />
-        <input
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          onChange={(e) => handleAvatarFileChange(e.target.files?.[0] || null)}
-          style={{ padding: 6, borderRadius: 8, border: "1px solid #cbd5e1" }}
-        />
-        <textarea
-          value={form.description}
-          onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Mo ta bac si"
-          rows={5}
-          style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1", resize: "vertical" }}
-        />
+    <div style={{ display: "grid", gap: 16 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button
-          type="submit"
-          disabled={saving}
-          style={{ padding: 10, border: "none", borderRadius: 8, background: "#0b5fff", color: "#fff" }}
+          type="button"
+          onClick={() => setActiveForm("profile")}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 8,
+            border: "1px solid #cbd5e1",
+            background: activeForm === "profile" ? "#0b5fff" : "#fff",
+            color: activeForm === "profile" ? "#fff" : "#334155",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
         >
-          {saving ? "Dang luu..." : "Luu thay doi"}
+          Cập nhật thông tin
         </button>
-      </form>
+        <button
+          type="button"
+          onClick={() => setActiveForm("password")}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 8,
+            border: "1px solid #cbd5e1",
+            background: activeForm === "password" ? "#0b5fff" : "#fff",
+            color: activeForm === "password" ? "#fff" : "#334155",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+        >
+          Đổi mật khẩu
+        </button>
+      </div>
+
+      {activeForm === "profile" ? (
+        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
+          <form onSubmit={onSubmit} style={{ display: "grid", gap: 10 }}>
+            <input
+              value={form.full_name ?? ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, full_name: e.target.value }))}
+              placeholder="Họ và tên"
+              style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+            />
+            <input
+              value={form.email ?? ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+              placeholder="Email"
+              style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+            />
+            <input
+              value={form.phone ?? ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+              placeholder="Số điện thoại"
+              style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+            />
+            <select
+              value={form.gender ?? "male"}
+              onChange={(e) => setForm((prev) => ({ ...prev, gender: e.target.value as "male" | "female" }))}
+              style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+            >
+              <option value="male">Nam</option>
+              <option value="female">Nữ</option>
+            </select>
+            <input
+              type="number"
+              min={1900}
+              max={new Date().getFullYear()}
+              value={form.birth_year ?? ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, birth_year: e.target.value }))}
+              placeholder="Năm sinh"
+              style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+            />
+            <textarea
+              value={form.description ?? ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="Mô tả"
+              rows={5}
+              style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1", resize: "vertical" }}
+            />
+            <button
+              type="submit"
+              disabled={saving}
+              style={{ padding: 10, border: "none", borderRadius: 8, background: "#0b5fff", color: "#fff" }}
+            >
+              {saving ? "Đang lưu..." : "Lưu thay đổi"}
+            </button>
+          </form>
+        </div>
+      ) : null}
+
+      {activeForm === "password" ? (
+        <div style={{ padding: 16, background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", height: "fit-content" }}>
+          <h3 style={{ marginTop: 0 }}>Đổi mật khẩu</h3>
+          <form onSubmit={onChangePassword} style={{ display: "grid", gap: 10 }}>
+            <div style={{ display: "grid", gap: 6 }}>
+              <label style={{ fontSize: 14, color: "#334155" }}>Mật khẩu cũ</label>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={passwordForm.old_password ?? ""}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, old_password: e.target.value }))}
+                placeholder="Nhập mật khẩu cũ"
+                style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+              />
+            </div>
+            <div style={{ display: "grid", gap: 6 }}>
+              <label style={{ fontSize: 14, color: "#334155" }}>Mật khẩu mới</label>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={passwordForm.new_password ?? ""}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, new_password: e.target.value }))}
+                placeholder="Nhập mật khẩu mới"
+                style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+              />
+            </div>
+            <div style={{ display: "grid", gap: 6 }}>
+              <label style={{ fontSize: 14, color: "#334155" }}>Xác nhận mật khẩu</label>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={passwordForm.confirm_password ?? ""}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirm_password: e.target.value }))}
+                placeholder="Nhập lại mật khẩu mới"
+                style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              style={{ padding: 8, border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff", color: "#334155", cursor: "pointer" }}
+            >
+              {showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+            </button>
+            <button
+              type="submit"
+              disabled={changingPassword}
+              style={{ padding: 10, border: "none", borderRadius: 8, background: "#0b5fff", color: "#fff" }}
+            >
+              {changingPassword ? "Đang đổi..." : "Đổi mật khẩu"}
+            </button>
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }

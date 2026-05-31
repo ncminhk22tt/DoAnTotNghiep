@@ -3,13 +3,20 @@
 // - Nếu route có trảnsaction: nhớ beginTransaction/commit/rollback.
 
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, hasTableColumn } from "@/lib/db";
 import { RowDataPacket } from "mysql2";
 import { getServiceSoftDeleteReady } from "@/lib/serviceSchema";
+import { getDoctorSpecialtiesReady } from "@/lib/doctorSpecialtySchema";
+import {
+  hasActiveScheduleForDoctor,
+  hasActiveScheduleForDoctorService,
+  hasActiveScheduleForDoctorSpecialty,
+} from "@/lib/adminScheduleGuard";
 
 type SetupDoctorBody = {
   user_id?: unknown;
   specialty_id?: unknown;
+  specialty_ids?: unknown;
   service_ids?: unknown;
 };
 
@@ -21,10 +28,17 @@ interface UserRow extends RowDataPacket {
 interface DoctorByIdRow extends RowDataPacket {
   id: number;
   user_id: number;
+  specialty_id: number | null;
+}
+
+interface DoctorServiceIdRow extends RowDataPacket {
+  service_id: number;
+  specialty_id: number | null;
 }
 
 interface ServiceRow extends RowDataPacket {
   id: number;
+  specialty_id: number | null;
 }
 
 interface LockedSpecialtyRow extends RowDataPacket {
@@ -32,10 +46,27 @@ interface LockedSpecialtyRow extends RowDataPacket {
   name: string;
 }
 
+function normalizeIdList(value: unknown) {
+  return Array.isArray(value)
+    ? Array.from(
+        new Set(
+          value
+            .filter((id): id is number => Number.isInteger(id) && id > 0)
+            .map((id) => Number(id))
+        )
+      )
+    : [];
+}
+
 function parseSetupBody(raw: SetupDoctorBody) {
   const userId = typeof raw.user_id === "number" ? raw.user_id : Number.NaN;
+  const specialtyIds = normalizeIdList(raw.specialty_ids);
   const specialtyId =
-    typeof raw.specialty_id === "number" ? raw.specialty_id : Number.NaN;
+    specialtyIds.length > 0
+      ? specialtyIds
+      : typeof raw.specialty_id === "number" && Number.isInteger(raw.specialty_id) && raw.specialty_id > 0
+        ? [raw.specialty_id]
+        : [];
 
   const serviceIds = Array.isArray(raw.service_ids)
     ? raw.service_ids.filter((id): id is number => Number.isInteger(id) && id > 0)
@@ -46,20 +77,25 @@ function parseSetupBody(raw: SetupDoctorBody) {
 
 async function validateServicesBySpecialty(
   serviceIds: number[],
-  specialtyId: number,
+  specialtyIds: number[],
   connection: Awaited<ReturnType<typeof db.getConnection>>
 ) {
   const softDeleteReady = await getServiceSoftDeleteReady();
   const placeholders = serviceIds.map(() => "?").join(", ");
 
   const [validServices] = await connection.execute<ServiceRow[]>(
-    `SELECT id
+    `SELECT id, specialty_id
      FROM services
-     WHERE id IN (${placeholders}) AND specialty_id = ? ${softDeleteReady ? "AND is_active = 1" : ""}`,
-    [...serviceIds, specialtyId]
+     WHERE id IN (${placeholders}) ${softDeleteReady ? "AND is_active = 1" : ""}`,
+    [...serviceIds]
   );
 
-  return validServices.length === serviceIds.length;
+  if (validServices.length !== serviceIds.length) {
+    return false;
+  }
+
+  const specialtySet = new Set(specialtyIds);
+  return validServices.every((service) => service.specialty_id && specialtySet.has(service.specialty_id));
 }
 
 function parseDoctorId(id: string) {
@@ -72,13 +108,40 @@ async function getLockedSpecialtyForUser(
   connection: Awaited<ReturnType<typeof db.getConnection>>,
   userId: number
 ) {
+  const [hasHeadColumn, hasDeputyColumn] = await Promise.all([
+    hasTableColumn("specialties", "head_doctor_user_id"),
+    hasTableColumn("specialties", "deputy_doctor_user_id"),
+  ]);
+
+  if (!hasHeadColumn && !hasDeputyColumn) {
+    return null;
+  }
+
+  const conditions: string[] = [];
+  const params: number[] = [];
+
+  if (hasHeadColumn) {
+    conditions.push("head_doctor_user_id = ?");
+    params.push(userId);
+  }
+
+  if (hasDeputyColumn) {
+    conditions.push("deputy_doctor_user_id = ?");
+    params.push(userId);
+  }
+
+  const orderClause = hasHeadColumn ? "(head_doctor_user_id = ?) DESC, " : "";
+  if (hasHeadColumn) {
+    params.push(userId);
+  }
+
   const [rows] = await connection.execute<LockedSpecialtyRow[]>(
     `SELECT id, name
      FROM specialties
-     WHERE head_doctor_user_id = ? OR deputy_doctor_user_id = ?
-     ORDER BY (head_doctor_user_id = ?) DESC, id ASC
+     WHERE ${conditions.join(" OR ")}
+     ORDER BY ${orderClause}id ASC
      LIMIT 1`,
-    [userId, userId, userId]
+    params
   );
   return rows.length > 0 ? rows[0] : null;
 }
@@ -115,7 +178,7 @@ export async function PUT(
 
     const { userId, specialtyId, serviceIds } = parseSetupBody(body);
 
-    if (!specialtyId || Number.isNaN(specialtyId) || specialtyId <= 0) {
+    if (specialtyId.length === 0) {
       return NextResponse.json(
         { success: false, message: "specialty_id khong hop le" },
         { status: 400 }
@@ -132,7 +195,7 @@ export async function PUT(
     await connection.beginTransaction();
 
     const [doctorRows] = await connection.execute<DoctorByIdRow[]>(
-      "SELECT id, user_id FROM doctors WHERE id = ? LIMIT 1",
+      "SELECT id, user_id, specialty_id FROM doctors WHERE id = ? LIMIT 1",
       [doctorId]
     );
 
@@ -145,6 +208,24 @@ export async function PUT(
     }
 
     const currentDoctor = doctorRows[0];
+    const [currentServiceRows] = await connection.execute<DoctorServiceIdRow[]>(
+      `SELECT ds.service_id, COALESCE(ds.specialty_id, s.specialty_id) AS specialty_id
+       FROM doctor_services ds
+       LEFT JOIN services s ON s.id = ds.service_id
+       WHERE ds.doctor_id = ?`,
+      [doctorId]
+    );
+    const currentServiceIds = currentServiceRows
+      .map((row) => row.service_id)
+      .filter((serviceId) => Number.isInteger(serviceId) && serviceId > 0);
+    const currentSpecialtyIds = Array.from(
+      new Set([
+        ...(currentDoctor.specialty_id ? [currentDoctor.specialty_id] : []),
+        ...currentServiceRows
+          .map((row) => row.specialty_id)
+          .filter((specialtyId): specialtyId is number => Number.isInteger(specialtyId) && specialtyId > 0),
+      ])
+    );
 
     let finalUserId = currentDoctor.user_id;
 
@@ -179,22 +260,26 @@ export async function PUT(
     }
 
     const lockedSpecialty = await getLockedSpecialtyForUser(connection, finalUserId);
-    const finalSpecialtyId = lockedSpecialty ? lockedSpecialty.id : specialtyId;
+    const finalSpecialtyIds = Array.from(
+      new Set([
+        ...(lockedSpecialty ? [lockedSpecialty.id] : []),
+        ...specialtyId,
+      ])
+    );
+    const primarySpecialtyId = lockedSpecialty ? lockedSpecialty.id : finalSpecialtyIds[0];
+    const doctorSpecialtiesReady = await getDoctorSpecialtiesReady();
 
-    if (lockedSpecialty && specialtyId !== lockedSpecialty.id) {
+    if (!primarySpecialtyId) {
       await connection.rollback();
       return NextResponse.json(
-        {
-          success: false,
-          message: `Bac si dang la Truong/Pho khoa ${lockedSpecialty.name}, khong duoc setup sang khoa khac`,
-        },
+        { success: false, message: "chuyen khoa khong hop le" },
         { status: 400 }
       );
     }
 
     const isServiceValid = await validateServicesBySpecialty(
       serviceIds,
-      finalSpecialtyId,
+      finalSpecialtyIds,
       connection
     );
 
@@ -206,19 +291,76 @@ export async function PUT(
       );
     }
 
+    const removedServiceIds = currentServiceIds.filter(
+      (serviceId) => !serviceIds.includes(serviceId)
+    );
+    const removedSpecialtyIds = currentSpecialtyIds.filter(
+      (specialtyId) => !finalSpecialtyIds.includes(specialtyId)
+    );
+
+    for (const removedServiceId of removedServiceIds) {
+      if (await hasActiveScheduleForDoctorService(doctorId, removedServiceId)) {
+        await connection.rollback();
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Khong the xoa dich vu khoi bac si vi bac si dang co lich kham hien tai hoac tuong lai lien quan.",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    for (const removedSpecialtyId of removedSpecialtyIds) {
+      if (await hasActiveScheduleForDoctorSpecialty(doctorId, removedSpecialtyId)) {
+        await connection.rollback();
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Khong the xoa chuyen khoa khoi bac si vi bac si dang co lich kham hien tai hoac tuong lai lien quan.",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     await connection.execute(
       "UPDATE doctors SET specialty_id = ? WHERE id = ?",
-      [finalSpecialtyId, doctorId]
+      [primarySpecialtyId, doctorId]
     );
+
+    if (doctorSpecialtiesReady) {
+      await connection.execute("DELETE FROM doctor_specialties WHERE doctor_id = ?", [doctorId]);
+
+      const specialtyValues: [number, number, number][] = finalSpecialtyIds.map((specialtyId) => [
+        doctorId,
+        specialtyId,
+        specialtyId === primarySpecialtyId ? 1 : 0,
+      ]);
+
+      await connection.query(
+        "INSERT INTO doctor_specialties (doctor_id, specialty_id, is_primary) VALUES ?",
+        [specialtyValues]
+      );
+    }
 
     await connection.execute("DELETE FROM doctor_services WHERE doctor_id = ?", [
       doctorId,
     ]);
 
-    const values: [number, number, number][] = serviceIds.map((serviceId) => [
+    const [serviceRows] = await connection.execute<ServiceRow[]>(
+      `SELECT id, specialty_id
+       FROM services
+       WHERE id IN (${serviceIds.map(() => "?").join(", ")})`,
+      [...serviceIds]
+    );
+
+    const values: [number, number, number][] = serviceRows.map((service) => [
       doctorId,
-      serviceId,
-      finalSpecialtyId,
+      service.id,
+      service.specialty_id || primarySpecialtyId,
     ]);
 
     await connection.query(
@@ -234,7 +376,8 @@ export async function PUT(
       data: {
         doctor_id: doctorId,
         user_id: finalUserId,
-        specialty_id: finalSpecialtyId,
+        specialty_id: primarySpecialtyId,
+        specialty_ids: finalSpecialtyIds,
         service_ids: serviceIds,
       },
     });
@@ -291,9 +434,27 @@ export async function DELETE(
       );
     }
 
+    if (await hasActiveScheduleForDoctor(doctorId)) {
+      await connection.rollback();
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Khong the xoa setup bac si vi bac si dang co lich kham hien tai hoac tuong lai.",
+        },
+        { status: 409 }
+      );
+    }
+
     await connection.execute("DELETE FROM doctor_services WHERE doctor_id = ?", [
       doctorId,
     ]);
+    const doctorSpecialtiesReady = await getDoctorSpecialtiesReady();
+    if (doctorSpecialtiesReady) {
+      await connection.execute("DELETE FROM doctor_specialties WHERE doctor_id = ?", [
+        doctorId,
+      ]);
+    }
     await connection.execute("DELETE FROM doctors WHERE id = ?", [doctorId]);
 
     await connection.commit();

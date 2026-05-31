@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, dbConfig } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -7,8 +7,8 @@ export async function GET() {
     return NextResponse.json(
       {
         connected: true,
-        dbHost: process.env.DB_HOST || "127.0.0.1",
-        dbName: process.env.DB_NAME || null,
+        dbHost: dbConfig.host,
+        dbName: dbConfig.database,
         result: rows,
       },
       { status: 200 }

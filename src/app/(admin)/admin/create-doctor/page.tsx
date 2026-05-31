@@ -10,6 +10,13 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function isValidDoctorName(value: string) {
+  const normalizedValue = value.trim();
+  return normalizedValue.length >= 1
+    && normalizedValue.length <= 50
+    && /^[\p{L}]+(?:\s+[\p{L}]+)*$/u.test(normalizedValue);
+}
+
 export default function AdminCreateDoctorPage() {
   const { showToast } = useToast();
 
@@ -33,28 +40,38 @@ export default function AdminCreateDoctorPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
 
-    if (!phone.trim() || !password.trim() || !fullName.trim() || !email.trim()) {
-      showToast("Vui long nhap day du thong tin bat buoc", "error");
+    const normalizedFullName = fullName.trim();
+    const normalizedPhone = phone.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password.trim();
+
+    if (!normalizedFullName || !normalizedPhone || !normalizedEmail || !normalizedPassword) {
+      showToast("Vui lòng nhập đầy đủ họ tên, email, số điện thoại và mật khẩu", "error");
       return;
     }
 
-    if (!isValidEmail(email.trim())) {
-      showToast("Email khong hop le", "error");
+    if (!isValidDoctorName(normalizedFullName)) {
+      showToast("Họ tên chỉ được 1 đến 50 ký tự, gồm chữ cái và khoảng trắng giữa các từ", "error");
       return;
     }
 
-    if (!/^[0-9]{10,15}$/.test(phone.trim())) {
-      showToast("Phone phai tu 10 den 15 chu so", "error");
+    if (!/^[0-9]{10,15}$/.test(normalizedPhone)) {
+      showToast("Số điện thoại phải chứa 10 đến 15 chữ số", "error");
       return;
     }
 
-    if (password.trim().length < 6) {
-      showToast("Mat khau can it nhat 6 ky tu", "error");
+    if (!isValidEmail(normalizedEmail)) {
+      showToast("Email không hợp lệ", "error");
+      return;
+    }
+
+    if (!/^[A-Za-z0-9]{8,15}$/.test(normalizedPassword)) {
+      showToast("Mật khẩu phải từ 8 đến 15 ký tự và chỉ gồm chữ, số", "error");
       return;
     }
 
     if (password !== confirmPassword) {
-      showToast("Mat khau nhap lai khong khop", "error");
+      showToast("Mật khẩu nhập lại không khớp", "error");
       return;
     }
 
@@ -64,17 +81,17 @@ export default function AdminCreateDoctorPage() {
       await apiClient.post(
         "/api/admin/create-doctor",
         {
-          phone: phone.trim(),
-          password: password.trim(),
-          full_name: fullName.trim(),
-          email: email.trim().toLowerCase(),
+          phone: normalizedPhone,
+          password: normalizedPassword,
+          full_name: normalizedFullName,
+          email: normalizedEmail,
         },
         token
       );
       resetForm();
-      showToast("Tao tai khoan bac si thanh cong", "success");
+      showToast("Tạo tài khoản bác sĩ thành công", "success");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Tao tai khoan that bai", "error");
+      showToast(err instanceof Error ? err.message : "Tạo tài khoản thất bại", "error");
     } finally {
       setIsSaving(false);
     }
@@ -82,7 +99,7 @@ export default function AdminCreateDoctorPage() {
 
   return (
     <div className={styles.page}>
-      <h2 className={styles.title}>Tao tai khoan bac si</h2>
+      <h2 className={styles.title}>Tạo tài khoản bác sĩ</h2>
 
       <form onSubmit={onSubmit} className={styles.formCard}>
         <div className={styles.row}>
@@ -90,7 +107,7 @@ export default function AdminCreateDoctorPage() {
             <label className={styles.label}>Số điện thoại đăng nhập</label>
             <input
               className={styles.input}
-              placeholder="Vi du: 0901234567"
+              placeholder="Ví dụ: 0901234567"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
@@ -108,40 +125,40 @@ export default function AdminCreateDoctorPage() {
 
         <div className={styles.row}>
           <div className={styles.field}>
-            <label className={styles.label}>Mat khau</label>
+            <label className={styles.label}>Mật khẩu</label>
             <div className={styles.passwordWrap}>
               <input
                 type={showPassword ? "text" : "password"}
                 className={styles.input}
-                placeholder="It nhat 6 ky tu"
+                placeholder="8-15 ký tự, chỉ chữ và số"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
               <button
                 type="button"
                 className={styles.passwordToggle}
-                onClick={() => setShowPassword((v) => !v)}
+                onClick={() => setShowPassword((value) => !value)}
               >
-                {showPassword ? "An" : "Hien"}
+                {showPassword ? "Ẩn" : "Hiện"}
               </button>
             </div>
           </div>
           <div className={styles.field}>
-            <label className={styles.label}>Nhap lai mat khau</label>
+            <label className={styles.label}>Nhập lại mật khẩu</label>
             <div className={styles.passwordWrap}>
               <input
                 type={showPassword ? "text" : "password"}
                 className={styles.input}
-                placeholder="Nhap lai mat khau"
+                placeholder="Nhập lại mật khẩu"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
               <button
                 type="button"
                 className={styles.passwordToggle}
-                onClick={() => setShowPassword((v) => !v)}
+                onClick={() => setShowPassword((value) => !value)}
               >
-                {showPassword ? "An" : "Hien"}
+                {showPassword ? "Ẩn" : "Hiện"}
               </button>
             </div>
           </div>
@@ -149,10 +166,10 @@ export default function AdminCreateDoctorPage() {
 
         <div className={styles.row}>
           <div className={styles.field}>
-            <label className={styles.label}>Ho ten bac si</label>
+            <label className={styles.label}>Họ tên bác sĩ</label>
             <input
               className={styles.input}
-              placeholder="Nhap ho ten"
+              placeholder="Nhập họ tên"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
             />
@@ -162,10 +179,10 @@ export default function AdminCreateDoctorPage() {
 
         <div className={styles.buttonRow}>
           <button className={styles.primaryBtn} type="submit" disabled={isSaving}>
-            {isSaving ? "Dang tao..." : "Tao tai khoan"}
+            {isSaving ? "Đang tạo..." : "Tạo tài khoản"}
           </button>
           <button className={styles.secondaryBtn} type="button" onClick={resetForm}>
-            Lam moi
+            Làm mới
           </button>
         </div>
       </form>

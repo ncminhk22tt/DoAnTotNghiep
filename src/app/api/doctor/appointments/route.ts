@@ -1,13 +1,12 @@
 // NOTE HỌC API:
 // - Mẫu đọc nhanh: auth/validate -> query DB -> business rule -> trả JSON.
-// - Nếu route có trảnsaction: nhớ beginTransaction/commit/rollback.
+// - Nếu route có transaction: nhớ beginTransaction/commit/rollback.
 
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, hasTableColumn } from "@/lib/db";
 import { RowDataPacket } from "mysql2";
 import { getAuthUserFromRequest } from "@/lib/requestAuth";
 import { getDoctorProfileId } from "@/lib/doctorProfile";
-import { getAppointmentDecisionSchemaReady } from "@/lib/appointmentDecisionSchema";
 
 interface DoctorAppointmentListRow extends RowDataPacket {
   id: number;
@@ -29,14 +28,13 @@ interface DoctorAppointmentListRow extends RowDataPacket {
 }
 
 // GET /api/doctor/appointments
-// Xem danh sach lịch hẹn cua doctor hien tai
+// Xem danh sách lịch hẹn của bác sĩ hiện tại
 export async function GET(req: NextRequest) {
   try {
-    await getAppointmentDecisionSchemaReady();
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "doctor") {
       return NextResponse.json(
-        { success: false, message: "Khong dung quyen doctor" },
+        { success: false, message: "Không đúng quyền bác sĩ" },
         { status: 403 }
       );
     }
@@ -44,17 +42,23 @@ export async function GET(req: NextRequest) {
     const doctorProfileId = await getDoctorProfileId(authUser.id);
     if (!doctorProfileId) {
       return NextResponse.json(
-        { success: false, message: "Doctor profile khong ton tai" },
+        { success: false, message: "Hồ sơ bác sĩ không tồn tại" },
         { status: 404 }
       );
     }
 
     const status = req.nextUrl.searchParams.get("status");
     const date = req.nextUrl.searchParams.get("date");
+    const serviceIdParam = req.nextUrl.searchParams.get("service_id");
+    const serviceId = serviceIdParam ? Number(serviceIdParam) : Number.NaN;
+    const hasAdminNoteColumn = await hasTableColumn("appointments", "admin_note");
 
-    let sql = `SELECT a.id, a.user_id, a.slot_id, a.doctor_id, a.status, a.note, a.admin_note, a.created_at,
+    let sql = `SELECT a.id, a.user_id, a.slot_id, a.doctor_id, a.status, a.note, ${hasAdminNoteColumn ? "a.admin_note" : "NULL AS admin_note"}, a.created_at,
                       p.full_name AS patient_name, p.phone AS patient_phone,
-                      s.work_date, s.start_time, s.end_time, s.room, s.service_id,
+                      DATE_FORMAT(s.work_date, '%Y-%m-%d') AS work_date,
+                      TIME_FORMAT(s.start_time, '%H:%i:%s') AS start_time,
+                      TIME_FORMAT(s.end_time, '%H:%i:%s') AS end_time,
+                      s.room, s.service_id,
                       sv.name AS service_name
                FROM appointments a
                JOIN users p ON p.id = a.user_id
@@ -75,20 +79,21 @@ export async function GET(req: NextRequest) {
       params.push(date);
     }
 
+    if (Number.isInteger(serviceId) && serviceId > 0) {
+      sql += " AND s.service_id = ?";
+      params.push(serviceId);
+    }
+
     sql += " ORDER BY a.created_at DESC, a.id DESC";
 
     const [rows] = await db.execute<DoctorAppointmentListRow[]>(sql, params);
 
     return NextResponse.json({
       success: true,
-      message: "Lay danh sach lich hen thanh cong",
+      message: "Lấy danh sách lịch hẹn thành công",
       data: rows,
     });
   } catch {
-    return NextResponse.json(
-      { success: false, message: "Loi server" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: "Lỗi server" }, { status: 500 });
   }
 }
-

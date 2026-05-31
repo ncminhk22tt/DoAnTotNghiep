@@ -4,18 +4,18 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { AppShell } from "@/components/layout/AppShell";
 
 const navItems = [
-  { href: "/doctor", label: "Tong quan" },
-  { href: "/doctor/schedules", label: "Lich lam viec" },
-  { href: "/doctor/schedules/list", label: "Danh sach lich" },
-  { href: "/doctor/appointments", label: "Lich hen" },
-  { href: "/doctor/medical-records", label: "Ho so benh an" },
-  { href: "/doctor/profile", label: "Ho so ca nhan" },
+  { href: "/doctor", label: "Tổng quan" },
+  { href: "/doctor/schedules", label: "Lịch làm việc" },
+  // { href: "/doctor/schedules/list", label: "Danh sách lịch" },
+  { href: "/doctor/appointments", label: "Lịch hẹn" },
+  { href: "/doctor/medical-records", label: "Hồ sơ bệnh án" },
+  { href: "/doctor/profile", label: "Hồ sơ cá nhân" },
 ];
 
 export default function DoctorLayout({ children }: { children: React.ReactNode }) {
   return (
     <RoleGuard allow="doctor">
-      <AppShell title="Cong bac si" navItems={navItems}>
+      <AppShell title="Cổng bác sĩ" navItems={navItems}>
         {children}
       </AppShell>
     </RoleGuard>

@@ -44,9 +44,13 @@ function formatTime(item: PaymentRow) {
 }
 
 function paymentLabel(status: PaymentStatusFilter | "unpaid" | "paid") {
-  if (status === "unpaid") return "Chua thanh toan";
-  if (status === "paid") return "Da thanh toan";
-  return "Tat ca";
+  if (status === "unpaid") return "Chưa thanh toán";
+  if (status === "paid") return "Đã thanh toán";
+  return "Tất cả";
+}
+
+function getPaymentBadgeClass(status: "unpaid" | "paid") {
+  return status === "paid" ? styles.badgePaid : styles.badgeUnpaid;
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -56,9 +60,7 @@ function formatDateTime(value: string | null | undefined) {
 
 export default function AdminPaymentsPage() {
   const { showToast } = useToast();
-  const today = new Date().toISOString().slice(0, 10);
   const [dateFilter, setDateFilter] = useState<string>("");
-
   const [items, setItems] = useState<PaymentRow[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [doctors, setDoctors] = useState<DoctorItem[]>([]);
@@ -75,20 +77,17 @@ export default function AdminPaymentsPage() {
       const res = await apiClient.get<{ data: ServiceItem[] }>("/api/admin/services", token);
       setServices(res.data || []);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Khong the tai danh sach dich vu", "error");
+      showToast(err instanceof Error ? err.message : "Không thể tải danh sách dịch vụ", "error");
     }
   }
 
   async function loadDoctors() {
     try {
       const token = getAccessToken("admin");
-      const res = await apiClient.get<{ data: DoctorItem[] }>(
-        "/api/admin/doctors/users",
-        token
-      );
+      const res = await apiClient.get<{ data: DoctorItem[] }>("/api/admin/doctors/users", token);
       setDoctors(res.data || []);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Khong the tai danh sach bac si", "error");
+      showToast(err instanceof Error ? err.message : "Không thể tải danh sách bác sĩ", "error");
     }
   }
 
@@ -109,7 +108,7 @@ export default function AdminPaymentsPage() {
       );
       setItems(res.data || []);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Khong the tai danh sach thanh toan", "error");
+      showToast(err instanceof Error ? err.message : "Không thể tải danh sách thanh toán", "error");
     } finally {
       setLoading(false);
     }
@@ -120,18 +119,24 @@ export default function AdminPaymentsPage() {
     try {
       const token = getAccessToken("admin");
       await apiClient.patch(`/api/admin/appointments/${appointmentId}/pay`, {}, token);
-      showToast("Da thanh toan cho benh nhan", "success");
-      // Reset filters to defaults after successful payment
+      showToast("Đã thanh toán cho bệnh nhân", "success");
       setConfirmPaymentId(null);
       setPaymentStatus("unpaid");
       setServiceId(0);
       setDoctorId(0);
       await loadPayments();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Khong the cap nhat thanh toan", "error");
+      showToast(err instanceof Error ? err.message : "Không thể cập nhật thanh toán", "error");
     } finally {
       setConfirmingPayment(false);
     }
+  }
+
+  function resetFilters() {
+    setPaymentStatus("unpaid");
+    setDateFilter("");
+    setServiceId(0);
+    setDoctorId(0);
   }
 
   useEffect(() => {
@@ -143,7 +148,6 @@ export default function AdminPaymentsPage() {
     loadPayments();
   }, []);
 
-  // Auto-apply filters when any filter value changes
   useEffect(() => {
     loadPayments();
   }, [paymentStatus, serviceId, doctorId, dateFilter]);
@@ -152,12 +156,17 @@ export default function AdminPaymentsPage() {
 
   return (
     <div className={styles.page}>
-      <h2 className={styles.title}>Thanh toan lich da kham</h2>
-      <p className={styles.subTitle}>Chọn bộ lọc trái để xem danh sách bệnh nhân đã khám xong</p>
+      {/* <h2 className={styles.title}>Thanh toán lịch đã khám</h2>
+      <p className={styles.subTitle}>Chọn bộ lọc bên trái để xem danh sách bệnh nhân đã khám xong</p> */}
 
       <div className={styles.mainGrid}>
         <aside className={styles.sidebar}>
-          <h3 className={styles.sidebarTitle}>Bộ lọc</h3>
+          <div className={styles.sidebarHead}>
+            <h3 className={styles.sidebarTitle}>Bộ lọc</h3>
+            <button type="button" className={styles.secondaryBtn} onClick={resetFilters}>
+              Xóa lọc
+            </button>
+          </div>
 
           <div className={styles.filterGroup}>
             <label htmlFor="paymentStatus">Trạng thái thanh toán</label>
@@ -217,8 +226,6 @@ export default function AdminPaymentsPage() {
               ))}
             </select>
           </div>
-
-          {/* Search button removed: filters auto-apply on change */}
         </aside>
 
         <section className={styles.results}>
@@ -232,10 +239,12 @@ export default function AdminPaymentsPage() {
                 <article key={item.id} className={styles.card}>
                   <div className={styles.cardTop}>
                     <h3 className={styles.cardTitle}>Bệnh nhân: {item.patient_name || "-"}</h3>
-                    <span className={styles.badge}>{paymentLabel(item.payment_status)}</span>
+                    <span className={`${styles.badge} ${getPaymentBadgeClass(item.payment_status)}`}>
+                      {paymentLabel(item.payment_status)}
+                    </span>
                   </div>
                   <div className={styles.grid}>
-                    <p><strong>SDT:</strong> {item.patient_phone || "-"}</p>
+                    <p><strong>SĐT:</strong> {item.patient_phone || "-"}</p>
                     <p><strong>Bác sĩ:</strong> {item.doctor_name || "-"} ({item.doctor_code || "-"})</p>
                     <p><strong>Dịch vụ:</strong> {item.service_name || "-"}</p>
                     <p><strong>Giá tiền:</strong> {item.price ? Number(item.price).toLocaleString("vi-VN") : 0} đ</p>
@@ -262,8 +271,8 @@ export default function AdminPaymentsPage() {
       {confirmPaymentId ? (
         <div className={styles.modalOverlay}>
           <div className={styles.modalCard}>
-            <h3 className={styles.modalTitle}>Xac nhan thanh toan</h3>
-            <p>Bạn muon xac nhan thanh toan cho lich kham #{confirmPaymentId}?</p>
+            <h3 className={styles.modalTitle}>Xác nhận thanh toán</h3>
+            <p>Bạn muốn xác nhận thanh toán?</p>
             <div className={styles.modalActions}>
               <button
                 type="button"
@@ -271,7 +280,7 @@ export default function AdminPaymentsPage() {
                 onClick={() => setConfirmPaymentId(null)}
                 disabled={confirmingPayment}
               >
-                Huy
+                Hủy
               </button>
               <button
                 type="button"
@@ -279,7 +288,7 @@ export default function AdminPaymentsPage() {
                 onClick={() => confirmPayment(confirmPaymentId)}
                 disabled={confirmingPayment}
               >
-                {confirmingPayment ? "Dang xu ly..." : "Xac nhan thanh toan"}
+                {confirmingPayment ? "Đang xử lý..." : "Xác nhận thanh toán"}
               </button>
             </div>
           </div>

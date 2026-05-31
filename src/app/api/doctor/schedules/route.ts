@@ -8,7 +8,7 @@ import { getDoctorProfileId } from "@/lib/doctorProfile";
 import { getServiceSoftDeleteReady } from "@/lib/serviceSchema";
 import { ensureScheduleClosedStatus } from "@/lib/scheduleSchema";
 
-// FILE HỌC LỊCH LÀM VIỆC CỦA DOCTOR:
+// FILE HĂ„â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¡Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â»Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚Â¦Ă„â€Ă‚Â¢Ä‚Â¢Ă¢â‚¬ÂĂ‚Â¬Ä‚Â¢Ă¢â‚¬ÂĂ‚Â¢C LĂ„â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¡Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â»Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚ÂCH LÄ‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă‚Â¢Ä‚Â¢Ă¢â‚¬ÂĂ‚Â¬Ä‚â€Ă‚ÂÄ‚â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¢Ă„â€Ă‚Â¢Ä‚Â¢Ă¢â‚¬ÂĂ‚Â¬Ä‚â€Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¬M VIĂ„â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¡Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â»Ä‚â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¢Ă„â€Ă‚Â¢Ä‚Â¢Ă¢â€Â¬Ă‚ÂÄ‚â€Ă‚Â¬Ă„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â C CĂ„â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¡Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â»Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¦A DOCTOR:
 // - GET: xem danh sach slot lich.
 // - POST: tao hang loat slot tu 1 khoang thoi gian.
 
@@ -18,7 +18,7 @@ interface CreateScheduleBody {
   end_time: string;
   slot_duration: number;
   service_id: number;
-  price: number;
+  price: unknown;
   room?: string;
   max_patients?: number;
 }
@@ -41,6 +41,36 @@ function normalizeDateOnly(input: unknown): string | null {
   return null;
 }
 
+function todayDateOnly(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function nowTimeOnly(): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(new Date());
+}
+
+function timeToMinutes(value: string): number {
+  const match = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!match) return Number.NaN;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return Number.NaN;
+  }
+  return hours * 60 + minutes;
+}
+
 // GET /api/doctor/schedules
 // Xem danh sach slot cua doctor hien tai (co the filter theo date/status/service_id)
 export async function GET(req: NextRequest) {
@@ -50,7 +80,7 @@ export async function GET(req: NextRequest) {
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "doctor") {
       return NextResponse.json(
-        { success: false, message: "Khong dung quyen doctor" },
+        { success: false, message: "KhĂ„â€Ă‚Â´ng Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Âºng quyÄ‚Â¡Ă‚Â»Ă‚Ân bĂ„â€Ă‚Â¡c sÄ‚â€Ă‚Â©" },
         { status: 403 }
       );
     }
@@ -58,7 +88,7 @@ export async function GET(req: NextRequest) {
     const doctorProfileId = await getDoctorProfileId(authUser.id);
     if (!doctorProfileId) {
       return NextResponse.json(
-        { success: false, message: "Doctor profile khong ton tai" },
+        { success: false, message: "HÄ‚Â¡Ă‚Â»Ă¢â‚¬Å“ sÄ‚â€ Ă‚Â¡ bĂ„â€Ă‚Â¡c sÄ‚â€Ă‚Â© khĂ„â€Ă‚Â´ng tÄ‚Â¡Ă‚Â»Ă¢â‚¬Å“n tÄ‚Â¡Ă‚ÂºĂ‚Â¡i" },
         { status: 404 }
       );
     }
@@ -69,7 +99,7 @@ export async function GET(req: NextRequest) {
 
     // SQL nen duoc ghep tung dieu kien de filter linh hoat.
     let sql =
-      "SELECT id, doctor_id, service_id, DATE_FORMAT(work_date, '%Y-%m-%d') AS work_date, start_time, end_time, room, price, max_patients, booked_count, status FROM doctor_schedule_slots WHERE doctor_id = ?";
+      "SELECT dss.id, dss.doctor_id, dss.service_id, s.name AS service_name, DATE_FORMAT(dss.work_date, '%Y-%m-%d') AS work_date, dss.start_time, dss.end_time, dss.room, dss.price, dss.max_patients, dss.booked_count, dss.status FROM doctor_schedule_slots dss LEFT JOIN services s ON s.id = dss.service_id WHERE dss.doctor_id = ?";
     const params: Array<string | number> = [doctorProfileId];
 
     if (date) {
@@ -86,7 +116,7 @@ export async function GET(req: NextRequest) {
       const serviceId = Number(serviceIdParam);
       if (Number.isNaN(serviceId) || serviceId <= 0) {
         return NextResponse.json(
-          { success: false, message: "service_id khong hop le" },
+          { success: false, message: "service_id khĂ„â€Ă‚Â´ng hÄ‚Â¡Ă‚Â»Ă‚Â£p lÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡" },
           { status: 400 }
         );
       }
@@ -101,19 +131,19 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Lay lich kham thanh cong",
+      message: "LÄ‚Â¡Ă‚ÂºĂ‚Â¥y lÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ch khĂ„â€Ă‚Â¡m thĂ„â€Ă‚Â nh cĂ„â€Ă‚Â´ng",
       data,
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: "Loi server" },
+      { success: false, message: "LÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i server" },
       { status: 500 }
     );
   }
 }
 
 // POST /api/doctor/schedules
-// Tao nhieu slot lịch khám trong 1 ca
+// Tao nhieu slot lĂ„â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¡Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â»Ä‚â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¢Ă„â€Ă‚Â¢Ä‚Â¢Ă¢â€Â¬Ă‚ÂÄ‚â€Ă‚Â¬Ă„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¹ch khÄ‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă‚Â¢Ä‚Â¢Ă¢â‚¬ÂĂ‚Â¬Ä‚â€Ă‚ÂÄ‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¡m trong 1 ca
 export async function POST(req: NextRequest) {
   const connection = await db.getConnection();
 
@@ -125,7 +155,7 @@ export async function POST(req: NextRequest) {
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "doctor") {
       return NextResponse.json(
-        { success: false, message: "Khong dung quyen doctor" },
+        { success: false, message: "KhĂ„â€Ă‚Â´ng Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Âºng quyÄ‚Â¡Ă‚Â»Ă‚Ân bĂ„â€Ă‚Â¡c sÄ‚â€Ă‚Â©" },
         { status: 403 }
       );
     }
@@ -135,7 +165,7 @@ export async function POST(req: NextRequest) {
       body = (await req.json()) as CreateScheduleBody;
     } catch {
       return NextResponse.json(
-        { success: false, message: "JSON khong hop le" },
+        { success: false, message: "JSON khĂ„â€Ă‚Â´ng hÄ‚Â¡Ă‚Â»Ă‚Â£p lÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡" },
         { status: 400 }
       );
     }
@@ -155,23 +185,67 @@ export async function POST(req: NextRequest) {
 
     if (!doctor_id) {
       return NextResponse.json(
-        { success: false, message: "Doctor profile khong ton tai" },
+        { success: false, message: "HÄ‚Â¡Ă‚Â»Ă¢â‚¬Å“ sÄ‚â€ Ă‚Â¡ bĂ„â€Ă‚Â¡c sÄ‚â€Ă‚Â© khĂ„â€Ă‚Â´ng tÄ‚Â¡Ă‚Â»Ă¢â‚¬Å“n tÄ‚Â¡Ă‚ÂºĂ‚Â¡i" },
         { status: 404 }
       );
     }
 
     const normalizedWorkDate = normalizeDateOnly(work_date);
+    const normalizedPrice =
+      typeof price === "number" ? price : typeof price === "string" ? Number(price.trim()) : Number.NaN;
+    const normalizedRoom = typeof room === "string" ? room.trim() : "";
+    const today = todayDateOnly();
+    const now = nowTimeOnly();
 
     if (!normalizedWorkDate || !start_time || !end_time || !slot_duration || !service_id) {
       return NextResponse.json(
-        { success: false, message: "Thieu du lieu" },
+        { success: false, message: "ThiÄ‚Â¡Ă‚ÂºĂ‚Â¿u dÄ‚Â¡Ă‚Â»Ă‚Â¯ liÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡u" },
+        { status: 400 }
+      );
+    }
+    if (price === undefined || price === null || (typeof price === "string" && !price.trim())) {
+      return NextResponse.json(
+        { success: false, message: "Vui long nhap gia kham" },
+        { status: 400 }
+      );
+    }
+    if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
+      return NextResponse.json(
+        { success: false, message: "Gia kham khong hop le" },
+        { status: 400 }
+      );
+    }
+    if (!normalizedRoom) {
+      return NextResponse.json(
+        { success: false, message: "Vui long nhap phong kham" },
+        { status: 400 }
+      );
+    }
+    if (normalizedWorkDate < today) {
+      return NextResponse.json(
+        { success: false, message: "KhĂ´ng thá»ƒ táº¡o lá»‹ch cho ngĂ y Ä‘Ă£ qua" },
+        { status: 400 }
+      );
+    }
+    if (normalizedWorkDate === today && start_time <= now) {
+      return NextResponse.json(
+        { success: false, message: "KhĂ´ng thá»ƒ táº¡o lá»‹ch cho giá» Ä‘Ă£ qua trong ngĂ y hĂ´m nay" },
+        { status: 400 }
+      );
+    }
+
+    const startMinutes = timeToMinutes(start_time);
+    const endMinutes = timeToMinutes(end_time);
+    if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes) || endMinutes - startMinutes < slot_duration) {
+      return NextResponse.json(
+        { success: false, message: "Khoang gio phai dai hon do dai slot" },
         { status: 400 }
       );
     }
 
     if (start_time >= end_time) {
       return NextResponse.json(
-        { success: false, message: "Thoi gian khong hop le" },
+        { success: false, message: "ThÄ‚Â¡Ă‚Â»Ă‚Âi gian khĂ„â€Ă‚Â´ng hÄ‚Â¡Ă‚Â»Ă‚Â£p lÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡" },
         { status: 400 }
       );
     }
@@ -180,12 +254,12 @@ export async function POST(req: NextRequest) {
     const slots = generateSlots(start_time, end_time, slot_duration);
     if (slots.length === 0) {
       return NextResponse.json(
-        { success: false, message: "Khong tao duoc slot" },
+        { success: false, message: "KhĂ„â€Ă‚Â´ng tÄ‚Â¡Ă‚ÂºĂ‚Â¡o Ä‚â€Ă¢â‚¬ËœÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Â£c slot" },
         { status: 400 }
       );
     }
 
-    // Dung trảnsaction de insert loat slot an toan.
+    // Dung trĂ„â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¡Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚ÂºÄ‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â£nsaction de insert loat slot an toan.
     await connection.beginTransaction();
 
     const [doctorServiceRows] = await connection.execute<DoctorServiceRow[]>(
@@ -205,20 +279,20 @@ export async function POST(req: NextRequest) {
     if (doctorServiceRows.length === 0) {
       await connection.rollback();
       return NextResponse.json(
-        { success: false, message: "Service khong thuoc doctor nay" },
+        { success: false, message: "DÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ch vÄ‚Â¡Ă‚Â»Ă‚Â¥ khĂ„â€Ă‚Â´ng thuÄ‚Â¡Ă‚Â»Ă¢â€Â¢c bĂ„â€Ă‚Â¡c sÄ‚â€Ă‚Â© nĂ„â€Ă‚Â y" },
         { status: 400 }
       );
     }
 
-    // Chuyen mang slot thanh dữ liệu insert bulk.
+    // Chuyen mang slot thanh dĂ„â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¡Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â»Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¯ liĂ„â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¡Ä‚â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‚ÂĂ„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â»Ä‚â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¢Ă„â€Ă‚Â¢Ä‚Â¢Ă¢â€Â¬Ă‚ÂÄ‚â€Ă‚Â¬Ă„â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¡u insert bulk.
     const values: unknown[][] = slots.map((slot) => [
       doctor_id,
       service_id,
       normalizedWorkDate,
       slot.start_time,
       slot.end_time,
-      room ?? null,
-      price,
+      normalizedRoom,
+      normalizedPrice,
       max_patients ?? 1,
     ]);
 
@@ -234,14 +308,14 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Tao lich kham thanh cong",
+      message: "TÄ‚Â¡Ă‚ÂºĂ‚Â¡o lÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ch khĂ„â€Ă‚Â¡m thĂ„â€Ă‚Â nh cĂ„â€Ă‚Â´ng",
     });
   } catch (error) {
     await connection.rollback();
 
     if ((error as { code?: string }).code === "ER_DUP_ENTRY") {
       return NextResponse.json(
-        { success: false, message: "Trung gio da ton tai" },
+        { success: false, message: "Trùng giờ đã tồn tại" },
         { status: 409 }
       );
     }
@@ -254,7 +328,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: false, message: "Loi server" },
+      { success: false, message: "LÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i server" },
       { status: 500 }
     );
   } finally {

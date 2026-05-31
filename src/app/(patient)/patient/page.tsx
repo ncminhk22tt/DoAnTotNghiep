@@ -15,31 +15,31 @@ type Shortcut = {
 const shortcuts: Shortcut[] = [
   {
     key: "appointments",
-    title: "Lich hen",
-    desc: "Xem lich da dat, trang thai va chi tiet buoi kham.",
+    title: "Lịch hẹn",
+    desc: "Xem lịch đã đặt, trạng thái và chi tiết buổi khám.",
     href: "/patient/appointments",
-    cta: "Mo lich hen",
+    cta: "Mở lịch hẹn",
   },
   {
     key: "records",
-    title: "Ket qua kham",
-    desc: "Xem chan doan, don thuoc va ket qua kham gan day.",
+    title: "Kết quả khám",
+    desc: "Xem chẩn đoán, đơn thuốc và kết quả khám gần đây.",
     href: "/patient/medical-records",
-    cta: "Xem ket qua",
+    cta: "Xem kết quả",
   },
   {
     key: "profile",
-    title: "Ho so ca nhan",
-    desc: "Cap nhat thong tin lien he va thong tin benh nhan.",
+    title: "Hồ sơ cá nhân",
+    desc: "Cập nhật thông tin liên hệ và thông tin bệnh nhân.",
     href: "/patient/profile",
-    cta: "Cap nhat ho so",
+    cta: "Cập nhật hồ sơ",
   },
   {
     key: "chatbox",
     title: "Chatbox AI",
-    desc: "Hoi dap nhanh ve dat lich, quy trinh kham va huong dan su dung he thong.",
+    desc: "Hỏi đáp nhanh về đặt lịch, quy trình khám và hướng dẫn sử dụng hệ thống.",
     action: "open-chat-widget",
-    cta: "Mo chatbox",
+    cta: "Mở chatbox",
   },
 ];
 

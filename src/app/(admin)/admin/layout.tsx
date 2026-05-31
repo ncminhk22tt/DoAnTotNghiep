@@ -4,20 +4,20 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { AppShell } from "@/components/layout/AppShell";
 
 const navItems = [
-  { href: "/admin", label: "Tong quan" },
-  { href: "/admin/appointments", label: "Lich hen" },
-  { href: "/admin/payments", label: "Thanh toan" },
-  { href: "/admin/specialties", label: "Chuyen khoa" },
-  { href: "/admin/services", label: "Dich vu" },
-  { href: "/admin/doctors-setup", label: "Thiet lap bac si" },
-  { href: "/admin/users", label: "Quan ly nguoi dung" },
-  { href: "/admin/create-doctor", label: "Tao tai khoan bac si" },
+  { href: "/admin", label: "Tổng quan" },
+  { href: "/admin/appointments", label: "Lịch hẹn" },
+  { href: "/admin/payments", label: "Thanh toán" },
+  { href: "/admin/specialties", label: "Chuyên khoa" },
+  { href: "/admin/services", label: "Dịch vụ" },
+  { href: "/admin/doctors-setup", label: "Thiết lập bác sĩ" },
+  { href: "/admin/users", label: "Quản lý người dùng" },
+  { href: "/admin/create-doctor", label: "Tạo tài khoản bác sĩ" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <RoleGuard allow="admin">
-      <AppShell title="Cong quan tri" navItems={navItems}>
+      <AppShell title="Trang quản lý Admin" navItems={navItems}>
         {children}
       </AppShell>
     </RoleGuard>

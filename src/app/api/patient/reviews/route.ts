@@ -9,6 +9,10 @@ type CreateReviewBody = {
   comment?: unknown;
 };
 
+function countChars(text: string): number {
+  return text.trim().length;
+}
+
 interface OwnedAppointmentRow extends RowDataPacket {
   appointment_id: number;
   doctor_id: number | null;
@@ -44,6 +48,7 @@ export async function POST(req: NextRequest) {
     const appointmentId = Number(body.appointment_id);
     const rating = Number(body.rating);
     const comment = typeof body.comment === "string" ? body.comment.trim() : null;
+    const commentCharCount = comment ? countChars(comment) : 0;
 
     if (!Number.isFinite(appointmentId) || appointmentId <= 0) {
       return NextResponse.json(
@@ -54,6 +59,12 @@ export async function POST(req: NextRequest) {
     if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
       return NextResponse.json(
         { success: false, message: "rating phai tu 1 den 5" },
+        { status: 400 }
+      );
+    }
+    if (commentCharCount > 100) {
+      return NextResponse.json(
+        { success: false, message: "Nh?n xét t?i đa 100 k? t?" },
         { status: 400 }
       );
     }

@@ -17,9 +17,17 @@ type AppShellProps = {
   children: React.ReactNode;
   homeHref?: string;
   homeLabel?: string;
+  showUserSubtitle?: boolean;
 };
 
-export function AppShell({ title, navItems, children, homeHref, homeLabel = "Về Home" }: AppShellProps) {
+export function AppShell({
+  title,
+  navItems,
+  children,
+  homeHref,
+  homeLabel = "Về Home",
+  showUserSubtitle = true,
+}: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const user = getAuthUser();
@@ -34,9 +42,11 @@ export function AppShell({ title, navItems, children, homeHref, homeLabel = "V�
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>{title}</h1>
-          <p className={styles.subtitle}>
-            {user ? `${user.full_name} (${user.role})` : "Chưa đăng nhập"}
-          </p>
+          {showUserSubtitle ? (
+            <p className={styles.subtitle}>
+              {user ? `${user.full_name} (${user.role})` : "Chưa đăng nhập"}
+            </p>
+          ) : null}
         </div>
         <div className={styles.headerActions}>
           {homeHref ? (

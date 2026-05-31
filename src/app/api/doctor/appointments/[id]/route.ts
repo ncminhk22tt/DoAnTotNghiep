@@ -1,9 +1,9 @@
 // NOTE HỌC API:
 // - Mẫu đọc nhanh: auth/validate -> query DB -> business rule -> trả JSON.
-// - Nếu route có trảnsaction: nhớ beginTransaction/commit/rollback.
+// - Nếu route có transaction: nhớ beginTransaction/commit/rollback.
 
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, hasTableColumn } from "@/lib/db";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { getAuthUserFromRequest } from "@/lib/requestAuth";
 import { getDoctorProfileId } from "@/lib/doctorProfile";
@@ -26,6 +26,9 @@ interface AppointmentRow extends RowDataPacket {
   doctor_id: number | null;
   status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
   note: string | null;
+  work_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
 }
 
 interface AppointmentDetailRow extends RowDataPacket {
@@ -46,6 +49,7 @@ interface AppointmentDetailRow extends RowDataPacket {
   room: string | null;
   service_id: number | null;
   service_name: string | null;
+  exam_allowed?: number | null;
 }
 
 interface MedicalRecordRow extends RowDataPacket {
@@ -81,8 +85,85 @@ function parseAppointmentId(id: string): number | null {
   return appointmentId;
 }
 
+function getClinicNowParts() {
+  return {
+    date: new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date()),
+    time: new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date()),
+  };
+}
+
+function toClinicDateString(value: unknown): string | null {
+  if (value == null) return null;
+  if (value instanceof Date) {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(value);
+  }
+  if (typeof value === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(parsed);
+    }
+    return value.slice(0, 10);
+  }
+  return String(value).slice(0, 10);
+}
+
+function toClinicTimeString(value: unknown): string | null {
+  if (value == null) return null;
+  if (value instanceof Date) {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(value);
+  }
+  if (typeof value === "string") return value.slice(0, 5);
+  return String(value).slice(0, 5);
+}
+
+function isAppointmentTimePassed(workDate: unknown, endTime: unknown) {
+  const workDateText = toClinicDateString(workDate);
+  const endTimeText = toClinicTimeString(endTime);
+  if (!workDateText || !endTimeText) return false;
+  const now = getClinicNowParts();
+  const appointmentTime = `${workDateText} ${endTimeText}`;
+  const currentTime = `${now.date} ${now.time}`;
+  return appointmentTime <= currentTime;
+}
+
+function isAppointmentStartReached(workDate: unknown, startTime: unknown) {
+  const workDateText = toClinicDateString(workDate);
+  const startTimeText = toClinicTimeString(startTime);
+  if (!workDateText || !startTimeText) return false;
+  const now = getClinicNowParts();
+  const appointmentTime = `${workDateText} ${startTimeText}`;
+  const currentTime = `${now.date} ${now.time}`;
+  return appointmentTime <= currentTime;
+}
+
 // GET /api/doctor/appointments/{id}
-// Xem chi tiet lịch hẹn + thông tin benh nhan + thông tin slot
+// Xem chi tiết lịch hẹn + thông tin bệnh nhân + thông tin slot
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -91,7 +172,7 @@ export async function GET(
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "doctor") {
       return NextResponse.json(
-        { success: false, message: "Khong dung quyen doctor" },
+        { success: false, message: "Không đúng quyền bác sĩ" },
         { status: 403 }
       );
     }
@@ -99,7 +180,7 @@ export async function GET(
     const doctorProfileId = await getDoctorProfileId(authUser.id);
     if (!doctorProfileId) {
       return NextResponse.json(
-        { success: false, message: "Doctor profile khong ton tai" },
+        { success: false, message: "Hồ sơ bác sĩ không tồn tại" },
         { status: 404 }
       );
     }
@@ -108,15 +189,19 @@ export async function GET(
     const appointmentId = parseAppointmentId(id);
     if (!appointmentId) {
       return NextResponse.json(
-        { success: false, message: "appointment_id khong hop le" },
+        { success: false, message: "appointment_id không hợp lệ" },
         { status: 400 }
       );
     }
+    const hasAdminNoteColumn = await hasTableColumn("appointments", "admin_note");
 
     const [rows] = await db.execute<AppointmentDetailRow[]>(
-      `SELECT a.id, a.user_id, a.slot_id, a.doctor_id, a.status, a.note, a.admin_note, a.created_at,
+      `SELECT a.id, a.user_id, a.slot_id, a.doctor_id, a.status, a.note, ${hasAdminNoteColumn ? "a.admin_note" : "NULL AS admin_note"}, a.created_at,
               p.full_name AS patient_name, p.phone AS patient_phone, p.email AS patient_email,
-              s.work_date, s.start_time, s.end_time, s.room, s.service_id,
+              DATE_FORMAT(s.work_date, '%Y-%m-%d') AS work_date,
+              TIME_FORMAT(s.start_time, '%H:%i:%s') AS start_time,
+              TIME_FORMAT(s.end_time, '%H:%i:%s') AS end_time,
+              s.room, s.service_id,
               sv.name AS service_name
        FROM appointments a
        JOIN users p ON p.id = a.user_id
@@ -130,10 +215,12 @@ export async function GET(
 
     if (rows.length === 0) {
       return NextResponse.json(
-        { success: false, message: "Lich hen khong ton tai" },
+        { success: false, message: "Lịch hẹn không tồn tại" },
         { status: 404 }
       );
     }
+
+    const examAllowed = isAppointmentStartReached(rows[0].work_date, rows[0].start_time) ? 1 : 0;
 
     const [medicalRows] = await db.execute<MedicalRecordRow[]>(
       `SELECT id, diagnosis, notes, created_at
@@ -176,22 +263,21 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      message: "Lay chi tiet lich hen thanh cong",
+      message: "Lấy chi tiết lịch hẹn thành công",
       data: {
         ...rows[0],
+        exam_allowed: Boolean(examAllowed),
         medical_records: medicalRecords,
       },
     });
-  } catch {
-    return NextResponse.json(
-      { success: false, message: "Loi server" },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error("GET /api/doctor/appointments/[id] failed:", error);
+    return NextResponse.json({ success: false, message: "Lỗi server" }, { status: 500 });
   }
 }
 
 // PATCH /api/doctor/appointments/{id}
-// Doctor xac nhan / hoan tat / huy lịch hẹn
+// Bác sĩ xác nhận / hoàn tất / hủy lịch hẹn
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -205,7 +291,7 @@ export async function PATCH(
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "doctor") {
       return NextResponse.json(
-        { success: false, message: "Khong dung quyen doctor" },
+        { success: false, message: "Không đúng quyền bác sĩ" },
         { status: 403 }
       );
     }
@@ -213,7 +299,7 @@ export async function PATCH(
     const doctorProfileId = await getDoctorProfileId(authUser.id);
     if (!doctorProfileId) {
       return NextResponse.json(
-        { success: false, message: "Doctor profile khong ton tai" },
+        { success: false, message: "Hồ sơ bác sĩ không tồn tại" },
         { status: 404 }
       );
     }
@@ -223,7 +309,7 @@ export async function PATCH(
     appointmentIdForAudit = appointmentId;
     if (!appointmentId) {
       return NextResponse.json(
-        { success: false, message: "appointment_id khong hop le" },
+        { success: false, message: "appointment_id không hợp lệ" },
         { status: 400 }
       );
     }
@@ -233,7 +319,7 @@ export async function PATCH(
       body = (await req.json()) as UpdateAppointmentBody;
     } catch {
       return NextResponse.json(
-        { success: false, message: "JSON khong hop le" },
+        { success: false, message: "JSON không hợp lệ" },
         { status: 400 }
       );
     }
@@ -245,13 +331,13 @@ export async function PATCH(
     const decisionNote = typeof body.decision_note === "string" ? body.decision_note.trim() : "";
     if (!status) {
       return NextResponse.json(
-        { success: false, message: "status khong hop le" },
+        { success: false, message: "status không hợp lệ" },
         { status: 400 }
       );
     }
     if (status === "cancelled" && !decisionNote) {
       return NextResponse.json(
-        { success: false, message: "Vui long nhap ly do huy lich" },
+        { success: false, message: "Vui lòng nhập lý do hủy lịch" },
         { status: 400 }
       );
     }
@@ -259,7 +345,10 @@ export async function PATCH(
     await connection.beginTransaction();
 
     const [rows] = await connection.execute<AppointmentRow[]>(
-      `SELECT a.id, a.user_id, a.slot_id, a.doctor_id, a.status, a.note
+      `SELECT a.id, a.user_id, a.slot_id, a.doctor_id, a.status, a.note,
+              DATE_FORMAT(s.work_date, '%Y-%m-%d') AS work_date,
+              TIME_FORMAT(s.start_time, '%H:%i:%s') AS start_time,
+              TIME_FORMAT(s.end_time, '%H:%i:%s') AS end_time
        FROM appointments a
        LEFT JOIN doctor_schedule_slots s ON s.id = a.slot_id
        WHERE a.id = ?
@@ -271,7 +360,7 @@ export async function PATCH(
     if (rows.length === 0) {
       await connection.rollback();
       return NextResponse.json(
-        { success: false, message: "Lich hen khong ton tai" },
+        { success: false, message: "Lịch hẹn không tồn tại" },
         { status: 404 }
       );
     }
@@ -283,8 +372,24 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          message: `Khong the chuyen trang thai tu '${current.status}' sang '${status}'`,
+          message: `Không thể chuyển trạng thái từ '${current.status}' sang '${status}'`,
         },
+        { status: 400 }
+      );
+    }
+
+    if (status === "no_show" && !isAppointmentTimePassed(current.work_date || null, current.end_time || null)) {
+      await connection.rollback();
+      return NextResponse.json(
+        { success: false, message: "Chỉ có thể đánh dấu vắng mặt sau giờ khám." },
+        { status: 400 }
+      );
+    }
+
+    if (status === "cancelled" && isAppointmentStartReached(current.work_date || null, current.start_time || null)) {
+      await connection.rollback();
+      return NextResponse.json(
+        { success: false, message: "Không thể hủy lịch hẹn khi đã tới giờ khám." },
         { status: 400 }
       );
     }
@@ -296,7 +401,7 @@ export async function PATCH(
            checked_in_at = CASE WHEN ? = 'cancelled' THEN NULL ELSE checked_in_at END,
            checked_in_by = CASE WHEN ? = 'cancelled' THEN NULL ELSE checked_in_by END
        WHERE id = ?`,
-      [status, status, status === "cancelled" ? `[Bac si huy] ${decisionNote}` : null, status, status, appointmentId]
+      [status, status, status === "cancelled" ? `[Bác sĩ hủy] ${decisionNote}` : null, status, status, appointmentId]
     );
 
     if (current.slot_id && status === "cancelled" && ["pending", "confirmed"].includes(current.status)) {
@@ -332,16 +437,14 @@ export async function PATCH(
 
     if (status === "cancelled") {
       const actionUrlReady = await getNotificationActionUrlReady();
-      const message = `Lich hen #${appointmentId} da bi bac si huy. Ly do: ${decisionNote}`;
+      const message = `Lịch hẹn #${appointmentId} đã bị bác sĩ hủy. Lý do: ${decisionNote}`;
       await connection.execute<ResultSetHeader>(
         actionUrlReady
           ? `INSERT INTO notifications (user_id, message, action_url, is_read, created_at)
              VALUES (?, ?, ?, false, NOW())`
           : `INSERT INTO notifications (user_id, message, is_read, created_at)
              VALUES (?, ?, false, NOW())`,
-        actionUrlReady
-          ? [current.user_id, message, "/patient/appointments"]
-          : [current.user_id, message]
+        actionUrlReady ? [current.user_id, message, "/patient/appointments"] : [current.user_id, message]
       );
     }
 
@@ -357,7 +460,7 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      message: "Cap nhat lich hen thanh cong",
+      message: "Cập nhật lịch hẹn thành công",
       data: {
         appointment_id: appointmentId,
         old_status: current.status,
@@ -371,12 +474,9 @@ export async function PATCH(
       entity_type: "appointment",
       entity_id: appointmentIdForAudit,
       status: "failed",
-      detail: "Doctor cap nhat trang thai lich hen that bai",
+      detail: "Cập nhật trạng thái lịch hẹn thất bại",
     });
-    return NextResponse.json(
-      { success: false, message: "Loi server" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: "Lỗi server" }, { status: 500 });
   } finally {
     connection.release();
   }

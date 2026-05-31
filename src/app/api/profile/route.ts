@@ -42,7 +42,7 @@ interface ProfileUpdateSourceRow extends RowDataPacket {
 }
 
 function isValidPhone(phone: string): boolean {
-  return /^[0-9+]{8,20}$/.test(phone);
+  return /^[0-9]{10,15}$/.test(phone);
 }
 
 function isValidEmail(email: string): boolean {
@@ -119,7 +119,8 @@ export async function PATCH(req: NextRequest) {
     const emailRaw = typeof body.email === "string" ? body.email.trim().toLowerCase() : undefined;
     const avatarRaw = typeof body.avatar === "string" ? body.avatar.trim() : undefined;
     const genderRaw = typeof body.gender === "string" ? body.gender.trim().toLowerCase() : undefined;
-    const birthYearRaw = typeof body.birth_year === "number" ? body.birth_year : Number.NaN;
+    const birthYearRaw =
+      body.birth_year === null ? null : typeof body.birth_year === "number" ? body.birth_year : Number.NaN;
     const descriptionRaw = typeof body.description === "string" ? body.description.trim() : undefined;
 
     if (
@@ -128,7 +129,7 @@ export async function PATCH(req: NextRequest) {
       emailRaw === undefined &&
       avatarRaw === undefined &&
       genderRaw === undefined &&
-      Number.isNaN(birthYearRaw) &&
+      (typeof birthYearRaw === "number" ? Number.isNaN(birthYearRaw) : false) &&
       descriptionRaw === undefined
     ) {
       return NextResponse.json({ success: false, message: "Khong co du lieu de cap nhat" }, { status: 400 });
@@ -136,6 +137,12 @@ export async function PATCH(req: NextRequest) {
 
     if (fullName !== undefined && fullName.length === 0) {
       return NextResponse.json({ success: false, message: "full_name khong hop le" }, { status: 400 });
+    }
+    if (fullName !== undefined) {
+      const wordCount = fullName.split(/\s+/).filter(Boolean).length;
+      if (wordCount === 0 || wordCount > 50) {
+        return NextResponse.json({ success: false, message: "full_name khong hop le" }, { status: 400 });
+      }
     }
 
     if (phoneRaw !== undefined && phoneRaw !== "" && !isValidPhone(phoneRaw)) {
@@ -148,7 +155,7 @@ export async function PATCH(req: NextRequest) {
     if (genderRaw !== undefined && !["male", "female", ""].includes(genderRaw)) {
       return NextResponse.json({ success: false, message: "gender khong hop le" }, { status: 400 });
     }
-    if (!Number.isNaN(birthYearRaw)) {
+    if (typeof birthYearRaw === "number" && !Number.isNaN(birthYearRaw)) {
       const currentYear = new Date().getFullYear();
       if (!Number.isInteger(birthYearRaw) || birthYearRaw < 1900 || birthYearRaw > currentYear) {
         return NextResponse.json({ success: false, message: "birth_year khong hop le" }, { status: 400 });
@@ -159,7 +166,8 @@ export async function PATCH(req: NextRequest) {
     const email = emailRaw;
     const avatar = avatarRaw === undefined ? undefined : avatarRaw || null;
     const gender = genderRaw === undefined ? undefined : genderRaw || null;
-    const birthYear = Number.isNaN(birthYearRaw) ? undefined : birthYearRaw;
+    const birthYear =
+      birthYearRaw === null ? null : typeof birthYearRaw === "number" && !Number.isNaN(birthYearRaw) ? birthYearRaw : undefined;
     const description = descriptionRaw === undefined ? undefined : descriptionRaw || null;
 
     const [sourceRows] = await db.execute<ProfileUpdateSourceRow[]>(
@@ -187,6 +195,18 @@ export async function PATCH(req: NextRequest) {
     if (!nextEmail) {
       return NextResponse.json(
         { success: false, message: "Tai khoan bat buoc phai co email" },
+        { status: 400 }
+      );
+    }
+    if (!nextPhone) {
+      return NextResponse.json(
+        { success: false, message: "Tai khoan bat buoc phai co phone" },
+        { status: 400 }
+      );
+    }
+    if (!isValidPhone(nextPhone)) {
+      return NextResponse.json(
+        { success: false, message: "phone khong hop le" },
         { status: 400 }
       );
     }

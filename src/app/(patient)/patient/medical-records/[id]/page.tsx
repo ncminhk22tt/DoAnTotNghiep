@@ -57,7 +57,7 @@ export default function PatientMedicalRecordDetailPage({
         const res = await apiClient.get<DetailResponse>(`/api/patient/medical-records/${id}`, token);
         setData(res.data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Khong the tai chi tiet");
+        setError(err instanceof Error ? err.message : "Không thể tải chi tiết");
       } finally {
         setLoading(false);
       }
@@ -65,26 +65,26 @@ export default function PatientMedicalRecordDetailPage({
     load();
   }, [id]);
 
-  if (loading) return <p>Dang tai chi tiet ho so...</p>;
+  if (loading) return <p>Đang tải chi tiết hồ sơ...</p>;
   if (error) return <p style={{ color: "#dc2626" }}>{error}</p>;
-  if (!data) return <p>Khong co du lieu</p>;
+  if (!data) return <p>Không có dữ liệu</p>;
 
   return (
     <div>
-      <h2 style={{ marginTop: 0 }}>Chi tiet ho so #{data.medical_record.id}</h2>
-      <p>Chan doan: {data.medical_record.diagnosis || "-"}</p>
-      <p>Ghi chu: {data.medical_record.notes || "-"}</p>
+      <h2 style={{ marginTop: 0 }}>Chi tiết hồ sơ #{data.medical_record.id}</h2>
+      <p>Chẩn đoán: {data.medical_record.diagnosis || "-"}</p>
+      <p>Ghi chú: {data.medical_record.notes || "-"}</p>
 
-      <h3>Don thuoc</h3>
+      <h3>Đơn thuốc</h3>
       <ul>
         {data.prescriptions.map((p) => (
           <li key={p.id}>
-            Don #{p.id} - {p.items.length} thuoc
+            Đơn #{p.id} - {p.items.length} thuốc
           </li>
         ))}
       </ul>
 
-      <h3>Tep dinh kem</h3>
+      <h3>Tệp đính kèm</h3>
       <ul>
         {data.files.map((f) => (
           <li key={f.id}>
@@ -95,4 +95,3 @@ export default function PatientMedicalRecordDetailPage({
     </div>
   );
 }
-

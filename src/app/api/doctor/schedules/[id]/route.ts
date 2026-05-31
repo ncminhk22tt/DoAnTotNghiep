@@ -1,6 +1,6 @@
-// NOTE HỌC API:
-// - Mẫu đọc nhanh: auth/validate -> query DB -> business rule -> trả JSON.
-// - Nếu route có trảnsaction: nhớ beginTransaction/commit/rollback.
+// NOTE Há»ŒC API:
+// - Máº«u Ä‘á»c nhanh: auth/validate -> query DB -> business rule -> tráº£ JSON.
+// - Náº¿u route cĂ³ tráº£nsaction: nhá»› beginTransaction/commit/rollback.
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -54,6 +54,15 @@ function normalizeDateOnly(input: unknown): string | null {
   return null;
 }
 
+function getTodayInVietnam(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 // GET /api/doctor/schedules/{id}
 export async function GET(
   req: NextRequest,
@@ -65,7 +74,7 @@ export async function GET(
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "doctor") {
       return NextResponse.json(
-        { success: false, message: "Khong dung quyen doctor" },
+        { success: false, message: "Không đúng quyền bác sĩ" },
         { status: 403 }
       );
     }
@@ -73,7 +82,7 @@ export async function GET(
     const doctorProfileId = await getDoctorProfileId(authUser.id);
     if (!doctorProfileId) {
       return NextResponse.json(
-        { success: false, message: "Doctor profile khong ton tai" },
+        { success: false, message: "Hồ sơ bác sĩ không tồn tại" },
         { status: 404 }
       );
     }
@@ -82,7 +91,7 @@ export async function GET(
     const slotId = parseSlotId(id);
     if (!slotId) {
       return NextResponse.json(
-        { success: false, message: "slot_id khong hop le" },
+        { success: false, message: "slot_id không hợp lệ" },
         { status: 400 }
       );
     }
@@ -97,19 +106,19 @@ export async function GET(
 
     if (rows.length === 0) {
       return NextResponse.json(
-        { success: false, message: "Slot khong ton tai" },
+        { success: false, message: "Slot không tồn tại" },
         { status: 404 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: "Lay chi tiet slot thanh cong",
+      message: "Lấy chi tiết slot thành công",
       data: rows[0],
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: "Loi server" },
+      { success: false, message: "Lỗi server" },
       { status: 500 }
     );
   }
@@ -130,7 +139,7 @@ export async function PUT(
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "doctor") {
       return NextResponse.json(
-        { success: false, message: "Khong dung quyen doctor" },
+        { success: false, message: "Không đúng quyền bác sĩ" },
         { status: 403 }
       );
     }
@@ -138,7 +147,7 @@ export async function PUT(
     const doctorProfileId = await getDoctorProfileId(authUser.id);
     if (!doctorProfileId) {
       return NextResponse.json(
-        { success: false, message: "Doctor profile khong ton tai" },
+        { success: false, message: "Hồ sơ bác sĩ không tồn tại" },
         { status: 404 }
       );
     }
@@ -147,7 +156,7 @@ export async function PUT(
     const slotId = parseSlotId(id);
     if (!slotId) {
       return NextResponse.json(
-        { success: false, message: "slot_id khong hop le" },
+        { success: false, message: "slot_id không hợp lệ" },
         { status: 400 }
       );
     }
@@ -157,7 +166,7 @@ export async function PUT(
       body = (await req.json()) as UpdateScheduleBody;
     } catch {
       return NextResponse.json(
-        { success: false, message: "JSON khong hop le" },
+        { success: false, message: "JSON không hợp lệ" },
         { status: 400 }
       );
     }
@@ -175,7 +184,7 @@ export async function PUT(
     if (slotRows.length === 0) {
       await connection.rollback();
       return NextResponse.json(
-        { success: false, message: "Slot khong ton tai" },
+        { success: false, message: "Slot không tồn tại" },
         { status: 404 }
       );
     }
@@ -195,7 +204,16 @@ export async function PUT(
     if (!service_id || !work_date || !start_time || !end_time || !max_patients) {
       await connection.rollback();
       return NextResponse.json(
-        { success: false, message: "Du lieu cap nhat khong hop le" },
+        { success: false, message: "Dữ liệu cập nhật không hợp lệ" },
+        { status: 400 }
+      );
+    }
+
+    const today = getTodayInVietnam();
+    if (work_date < today) {
+      await connection.rollback();
+      return NextResponse.json(
+        { success: false, message: "Không thể sửa lịch của ngày đã qua" },
         { status: 400 }
       );
     }
@@ -203,7 +221,7 @@ export async function PUT(
     if (start_time >= end_time) {
       await connection.rollback();
       return NextResponse.json(
-        { success: false, message: "Thoi gian khong hop le" },
+        { success: false, message: "Thời gian không hợp lệ" },
         { status: 400 }
       );
     }
@@ -211,7 +229,7 @@ export async function PUT(
     if (max_patients < current.booked_count) {
       await connection.rollback();
       return NextResponse.json(
-        { success: false, message: "max_patients khong duoc nho hon booked_count" },
+        { success: false, message: "max_patients không được nhỏ hơn booked_count" },
         { status: 400 }
       );
     }
@@ -233,7 +251,7 @@ export async function PUT(
     if (doctorServiceRows.length === 0) {
       await connection.rollback();
       return NextResponse.json(
-        { success: false, message: "Service khong thuoc doctor nay" },
+        { success: false, message: "Dịch vụ không thuộc bác sĩ này" },
         { status: 400 }
       );
     }
@@ -259,14 +277,14 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      message: "Cap nhat slot thanh cong",
+      message: "Cập nhật slot thành công",
     });
   } catch (error) {
     await connection.rollback();
 
     if ((error as { code?: string }).code === "ER_DUP_ENTRY") {
       return NextResponse.json(
-        { success: false, message: "Trung gio da ton tai" },
+        { success: false, message: "Trùng giờ đã tồn tại" },
         { status: 409 }
       );
     }
@@ -279,7 +297,7 @@ export async function PUT(
     }
 
     return NextResponse.json(
-      { success: false, message: "Loi server" },
+      { success: false, message: "Lỗi server" },
       { status: 500 }
     );
   } finally {
@@ -300,7 +318,7 @@ export async function DELETE(
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "doctor") {
       return NextResponse.json(
-        { success: false, message: "Khong dung quyen doctor" },
+        { success: false, message: "Không đúng quyền bác sĩ" },
         { status: 403 }
       );
     }
@@ -308,7 +326,7 @@ export async function DELETE(
     const doctorProfileId = await getDoctorProfileId(authUser.id);
     if (!doctorProfileId) {
       return NextResponse.json(
-        { success: false, message: "Doctor profile khong ton tai" },
+        { success: false, message: "Hồ sơ bác sĩ không tồn tại" },
         { status: 404 }
       );
     }
@@ -317,7 +335,7 @@ export async function DELETE(
     const slotId = parseSlotId(id);
     if (!slotId) {
       return NextResponse.json(
-        { success: false, message: "slot_id khong hop le" },
+        { success: false, message: "slot_id không hợp lệ" },
         { status: 400 }
       );
     }
@@ -332,7 +350,7 @@ export async function DELETE(
     if (slotRows.length === 0) {
       await connection.rollback();
       return NextResponse.json(
-        { success: false, message: "Slot khong ton tai" },
+        { success: false, message: "Slot không tồn tại" },
         { status: 404 }
       );
     }
@@ -349,7 +367,7 @@ export async function DELETE(
     if (appointmentRows.length > 0) {
       await connection.rollback();
       return NextResponse.json(
-        { success: false, message: "Slot dang co lich hen, khong the xoa" },
+        { success: false, message: "Slot đang có lịch hẹn, không thể xóa" },
         { status: 400 }
       );
     }
@@ -363,12 +381,12 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: "Xoa slot thanh cong",
+      message: "Xóa slot thành công",
     });
   } catch {
     await connection.rollback();
     return NextResponse.json(
-      { success: false, message: "Loi server" },
+      { success: false, message: "Lỗi server" },
       { status: 500 }
     );
   } finally {

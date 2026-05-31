@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { RowDataPacket } from "mysql2";
 import { getServiceSoftDeleteReady } from "@/lib/serviceSchema";
+import { getDoctorSpecialtiesReady } from "@/lib/doctorSpecialtySchema";
 
 interface DoctorDetailRow extends RowDataPacket {
   doctor_id: number;
@@ -11,6 +12,8 @@ interface DoctorDetailRow extends RowDataPacket {
   avatar: string | null;
   specialty_id: number | null;
   specialty_name: string | null;
+  specialty_ids_csv: string | null;
+  specialty_names_csv: string | null;
   experience: number | null;
   description: string | null;
   rating_avg: number | null;
@@ -34,6 +37,7 @@ export async function GET(
 ) {
   try {
     const softDeleteReady = await getServiceSoftDeleteReady();
+    const doctorSpecialtiesReady = await getDoctorSpecialtiesReady();
 
     const { id } = await params;
     const doctorId = parseDoctorId(id);
@@ -48,14 +52,29 @@ export async function GET(
     const [doctorRows] = await db.execute<DoctorDetailRow[]>(
       `SELECT d.id AS doctor_id, d.user_id, d.doctor_code, u.full_name, u.avatar,
               d.specialty_id, sp.name AS specialty_name, d.experience, d.description,
+              ${doctorSpecialtiesReady ? "dsp.specialty_ids_csv, dsp.specialty_names_csv," : "NULL AS specialty_ids_csv, NULL AS specialty_names_csv,"}
               AVG(dr.rating) AS rating_avg,
               COUNT(DISTINCT dr.id) AS rating_count
        FROM doctors d
        JOIN users u ON u.id = d.user_id
        LEFT JOIN specialties sp ON sp.id = d.specialty_id
+       ${doctorSpecialtiesReady ? `LEFT JOIN (
+         SELECT doctor_id,
+                GROUP_CONCAT(DISTINCT specialty_id ORDER BY specialty_id ASC) AS specialty_ids_csv,
+                GROUP_CONCAT(DISTINCT specialty_name ORDER BY specialty_name ASC SEPARATOR '|||') AS specialty_names_csv
+         FROM (
+           SELECT dspec.doctor_id,
+                  dspec.specialty_id,
+                  sp.name AS specialty_name
+           FROM doctor_specialties dspec
+           LEFT JOIN specialties sp ON sp.id = dspec.specialty_id
+         ) doctor_specialty_names
+         GROUP BY doctor_id
+       ) dsp ON dsp.doctor_id = d.id` : ""}
        LEFT JOIN doctor_reviews dr ON dr.doctor_id = d.id
        WHERE d.id = ? AND u.role = 'doctor' AND u.status = 'active'
-       GROUP BY d.id, d.user_id, d.doctor_code, u.full_name, u.avatar, d.specialty_id, sp.name, d.experience, d.description
+       GROUP BY d.id, d.user_id, d.doctor_code, u.full_name, u.avatar, d.specialty_id, sp.name, d.experience, d.description,
+                ${doctorSpecialtiesReady ? "dsp.specialty_ids_csv, dsp.specialty_names_csv" : "NULL, NULL"}
        LIMIT 1`,
       [doctorId]
     );

@@ -55,6 +55,15 @@ CREATE TABLE IF NOT EXISTS doctor_services (
   KEY idx_doctor_services_specialty_id (specialty_id)
 );
 
+CREATE TABLE IF NOT EXISTS doctor_specialties (
+  doctor_id BIGINT NOT NULL,
+  specialty_id BIGINT NOT NULL,
+  is_primary TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (doctor_id, specialty_id),
+  KEY idx_doctor_specialties_specialty_id (specialty_id),
+  KEY idx_doctor_specialties_primary (doctor_id, is_primary)
+);
+
 CREATE TABLE IF NOT EXISTS code_sequences (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   type VARCHAR(50),
@@ -240,4 +249,3 @@ CREATE TABLE IF NOT EXISTS rate_limit_buckets (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_rate_limit_updated_at (updated_at)
 );
-

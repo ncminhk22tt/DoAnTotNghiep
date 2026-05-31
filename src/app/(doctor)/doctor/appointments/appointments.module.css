@@ -1,4 +1,9 @@
 .page {
+  font-family: "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   color: #0f172a;
 }
 
@@ -18,6 +23,22 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.filterRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.filterActions {
+  display: flex;
+  align-items: flex-end;
+}
+
+.filterActions button {
+  width: 100%;
+  height: 46px;
 }
 
 .field {
@@ -129,6 +150,11 @@
 .status_completed {
   background: #dcfce7;
   color: #166534;
+}
+
+.status_no_show {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .status_cancelled {
@@ -258,6 +284,36 @@
   gap: 4px;
 }
 
+.prescriptionTableWrap {
+  overflow: auto;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.prescriptionTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 420px;
+}
+
+.prescriptionTh {
+  text-align: left;
+  padding: 8px 10px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-bottom: 1px solid #dbeafe;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.prescriptionTd {
+  padding: 8px 10px;
+  border-bottom: 1px solid #eff6ff;
+  font-size: 14px;
+  vertical-align: top;
+}
+
 .examForm {
   border: 1px solid #dbeafe;
   border-radius: 12px;
@@ -333,6 +389,7 @@
 
 @media (max-width: 900px) {
   .row,
+  .filterRow,
   .detailGrid {
     grid-template-columns: 1fr;
   }

@@ -2,6 +2,7 @@
 import { db } from "@/lib/db";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { SpecialtyBody } from "@/types/specialty";
+import { hasActiveScheduleForSpecialty } from "@/lib/adminScheduleGuard";
 
 interface ShowColumnRow extends RowDataPacket {
   Field: string;
@@ -70,6 +71,17 @@ export async function PATCH(
       return NextResponse.json(
         { success: false, message: "Thiếu tên chuyên khoa" },
         { status: 400 }
+      );
+    }
+
+    if (await hasActiveScheduleForSpecialty(specialtyId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Không thể sửa chuyên khoa vì bác sĩ đang có lịch khám hiện tại hoặc tương lai liên quan.",
+        },
+        { status: 409 }
       );
     }
 
@@ -152,6 +164,17 @@ export async function DELETE(
       return NextResponse.json(
         { success: false, message: "ID không hợp lệ" },
         { status: 400 }
+      );
+    }
+
+    if (await hasActiveScheduleForSpecialty(specialtyId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Không thể xóa chuyên khoa vì bác sĩ đang có lịch khám hiện tại hoặc tương lai liên quan.",
+        },
+        { status: 409 }
       );
     }
 

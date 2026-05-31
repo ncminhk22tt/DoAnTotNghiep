@@ -42,6 +42,18 @@ type MedicalRecord = {
 
 function normalizeDate(value: string | null): string {
   if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(parsed);
+  }
+
   return value.slice(0, 10);
 }
 
@@ -54,18 +66,29 @@ function isValidDateInput(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+function isPastAppointment(item: AppointmentItem): boolean {
+  const datePart = normalizeDate(item.work_date);
+  const startPart = normalizeTime(item.start_time);
+  if (!datePart || !startPart) return false;
+
+  const slotTime = new Date(`${datePart}T${startPart}:00+07:00`);
+  if (Number.isNaN(slotTime.getTime())) return false;
+
+  return slotTime.getTime() <= Date.now();
+}
+
 function parseCancelInfo(adminNote: string | null): { cancelledBy: string; cancelReason: string } {
   const value = (adminNote || "").trim();
   if (!value) return { cancelledBy: "-", cancelReason: "-" };
   if (value.startsWith("[Benh nhan huy]")) {
     return {
-      cancelledBy: "Benh nhan",
+      cancelledBy: "Bệnh nhân",
       cancelReason: value.replace("[Benh nhan huy]", "").trim() || "-",
     };
   }
   if (value.startsWith("[Bac si huy]")) {
     return {
-      cancelledBy: "Bac si",
+      cancelledBy: "Bác sĩ",
       cancelReason: value.replace("[Bac si huy]", "").trim() || "-",
     };
   }
@@ -75,14 +98,55 @@ function parseCancelInfo(adminNote: string | null): { cancelledBy: string; cance
       cancelReason: value.replace("[Admin huy]", "").trim() || "-",
     };
   }
-  return { cancelledBy: "Khac", cancelReason: value };
+  return { cancelledBy: "Khác", cancelReason: value };
+}
+
+function parseRescheduleInfo(adminNote: string | null): {
+  reason: string;
+  fromSchedule: string;
+  toSchedule: string;
+} | null {
+  const value = (adminNote || "").trim();
+  if (!value.startsWith("[Yeu cau doi lich]")) return null;
+
+  const payload = value.replace("[Yeu cau doi lich]", "").trim();
+  const [left, right] = payload.split("->").map((x) => x?.trim() || "");
+  const [reasonPart, fromPart] = left.split("|").map((x) => x?.trim() || "");
+
+  const formatSchedulePart = (raw: string): string => {
+    if (!raw) return "-";
+    const timeMatch = raw.match(/(\d{2}:\d{2})-(\d{2}:\d{2})/);
+    const start = timeMatch?.[1] || "--:--";
+    const end = timeMatch?.[2] || "--:--";
+
+    const dateText = raw.replace(/\s*\d{2}:\d{2}-\d{2}:\d{2}.*/, "").trim();
+    const normalizedDateText = dateText.replace(/\s*\(.*\)\s*/g, " ").trim();
+    const parsedDate = new Date(normalizedDateText);
+    const yyyyMmDd =
+      Number.isNaN(parsedDate.getTime())
+        ? "-"
+        : new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Ho_Chi_Minh",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(parsedDate);
+
+    return `${yyyyMmDd} (${start} - ${end})`;
+  };
+
+  return {
+    reason: reasonPart || "-",
+    fromSchedule: formatSchedulePart(fromPart),
+    toSchedule: formatSchedulePart(right),
+  };
 }
 
 function statusLabel(status: AppointmentStatus) {
-  if (status === "pending" || status === "confirmed") return "Chua kham";
-  if (status === "completed") return "Da kham";
-  if (status === "no_show") return "Vang mat";
-  return "Huy";
+  if (status === "pending" || status === "confirmed") return "Chưa khám";
+  if (status === "completed") return "Đã khám";
+  if (status === "no_show") return "Vắng mặt";
+  return "Hủy";
 }
 
 function statusClass(status: AppointmentStatus) {
@@ -97,6 +161,17 @@ function formatTimeRange(item: AppointmentItem) {
   const start = normalizeTime(item.start_time) || "--:--";
   const end = normalizeTime(item.end_time) || "--:--";
   return `${date} (${start} - ${end})`;
+}
+
+function formatBookingNote(note: string | null): string {
+  if (!note) return "-";
+  return note
+    .replace(/\[Thong tin dat lich\]\s*\n?/gi, "")
+    .replace(/Ho va ten:/gi, "Họ và tên:")
+    .replace(/So dien thoai:/gi, "Số điện thoại:")
+    .replace(/Gioi tinh:/gi, "Giới tính:")
+    .replace(/Nam sinh:/gi, "Năm sinh:")
+    .replace(/Ly do kham:/gi, "Lý do khám:");
 }
 
 function getDefaultRevisitDate() {
@@ -157,23 +232,43 @@ export default function PatientAppointmentsPage() {
   }
 
   async function loadAppointments() {
+    let hasAppointmentsError = false;
     try {
       setLoading(true);
       const token = getAccessToken();
-      const [appointmentsRes, recordsRes] = await Promise.all([
+      const [appointmentsResult, recordsResult] = await Promise.allSettled([
         apiClient.get<{ data: AppointmentItem[] }>("/api/patient/appointments", token),
         apiClient.get<{ data: MedicalRecord[] }>("/api/patient/medical-records", token),
       ]);
-      setAppointments(appointmentsRes.data || []);
-      const nextMap = new Map<number, MedicalRecord>();
-      (recordsRes.data || []).forEach((record) => {
-        nextMap.set(record.appointment_id, record);
-      });
-      setRecordsByAppointmentId(nextMap);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : "Khong the tai lich hen", "error");
+
+      if (appointmentsResult.status === "fulfilled") {
+        setAppointments(appointmentsResult.value.data || []);
+      } else {
+        hasAppointmentsError = true;
+        setAppointments([]);
+        const message =
+          appointmentsResult.reason instanceof Error
+            ? appointmentsResult.reason.message
+            : "Không thể tải lịch hẹn";
+        showToast(message, "error");
+      }
+
+      if (recordsResult.status === "fulfilled") {
+        const nextMap = new Map<number, MedicalRecord>();
+        (recordsResult.value.data || []).forEach((record) => {
+          nextMap.set(record.appointment_id, record);
+        });
+        setRecordsByAppointmentId(nextMap);
+      } else {
+        setRecordsByAppointmentId(new Map());
+        if (!hasAppointmentsError) {
+          showToast("Không thể tải hồ sơ bệnh án, vẫn hiển thị lịch hẹn.", "info");
+        }
+      }
+    } catch {
       setAppointments([]);
       setRecordsByAppointmentId(new Map());
+      showToast("Không thể tải lịch hẹn", "error");
     } finally {
       setLoading(false);
     }
@@ -200,12 +295,12 @@ export default function PatientAppointmentsPage() {
 
   async function openReschedule(item: AppointmentItem) {
     if (!item.doctor_id) {
-      alert("Lich hen nay chua gan bac si");
+      alert("Lịch hẹn này chưa gán bác sĩ");
       return;
     }
     const currentDate = normalizeDate(item.work_date);
     if (!currentDate) {
-      alert("Khong tim thay ngay kham hien tai");
+      alert("Không tìm thấy ngày khám hiện tại");
       return;
     }
 
@@ -234,14 +329,14 @@ export default function PatientAppointmentsPage() {
       );
     } catch (err) {
       setReschedule((prev) => (prev ? { ...prev, slots: [], selectedSlotId: 0, loadingSlots: false } : prev));
-      showToast(err instanceof Error ? err.message : "Khong the tai khung gio doi lich", "error");
+      showToast(err instanceof Error ? err.message : "Không thể tải khung giờ đổi lịch", "error");
     }
   }
 
   async function submitReschedule() {
     if (!reschedule) return;
     if (!reschedule.selectedSlotId) {
-      alert("Vui long chon khung gio moi");
+      alert("Vui lòng chọn khung giờ mới");
       return;
     }
     try {
@@ -255,11 +350,11 @@ export default function PatientAppointmentsPage() {
         },
         token
       );
-      showToast("Doi lich thanh cong", "success");
+      showToast("Đổi lịch thành công", "success");
       setReschedule(null);
       await loadAppointments();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Khong the doi lich", "error");
+      showToast(err instanceof Error ? err.message : "Không thể đổi lịch", "error");
     } finally {
       setSavingReschedule(false);
     }
@@ -267,7 +362,7 @@ export default function PatientAppointmentsPage() {
 
   function openRevisit(item: AppointmentItem) {
     if (!item.doctor_id) {
-      alert("Lich hen nay chua gan bac si");
+      alert("Lịch hẹn này chưa gán bác sĩ");
       return;
     }
 
@@ -294,13 +389,13 @@ export default function PatientAppointmentsPage() {
   function submitRevisit() {
     if (!revisit) return;
     if (!revisit.selectedSlotId) {
-      alert("Vui long chon khung gio tai kham");
+      alert("Vui lòng chọn khung giờ tái khám");
       return;
     }
 
     setSavingRevisit(true);
     setTimeout(() => {
-      alert("Dat tai kham thanh cong (Demo)");
+      alert("Đặt tái khám thành công (Demo)");
       setRevisit(null);
       setSavingRevisit(false);
     }, 500);
@@ -308,7 +403,7 @@ export default function PatientAppointmentsPage() {
 
   async function handleCancel(appointmentId: number, reason: string) {
     if (!reason.trim()) {
-      showToast("Vui long nhap ly do huy lich", "error");
+      showToast("Vui lòng nhập lý do hủy lịch", "error");
       return;
     }
 
@@ -320,11 +415,11 @@ export default function PatientAppointmentsPage() {
         { appointment_id: appointmentId, cancel_reason: reason.trim() },
         token
       );
-      showToast("Huy lich thanh cong", "success");
+      showToast("Hủy lịch thành công", "success");
       setCancelModal(null);
       await loadAppointments();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Khong the huy lich", "error");
+      showToast(err instanceof Error ? err.message : "Không thể hủy lịch", "error");
     } finally {
       setSavingCancel(false);
     }
@@ -333,7 +428,7 @@ export default function PatientAppointmentsPage() {
   return (
     <div className={styles.page}>
       <section className={styles.card}>
-        <h2 className={styles.title}>Danh sach lich kham</h2>
+        <h2 className={styles.title}>Danh sách lịch khám</h2>
 
         <div className={styles.filters}>
           <select
@@ -341,11 +436,11 @@ export default function PatientAppointmentsPage() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
           >
-            <option value="all">Tat ca trang thai</option>
-            <option value="pending_confirmed">Chua kham</option>
-            <option value="completed">Da kham</option>
-            <option value="no_show">Vang mat</option>
-            <option value="cancelled">Huy</option>
+            <option value="all">Tất cả trạng thái</option>
+            <option value="pending_confirmed">Chưa khám</option>
+            <option value="completed">Đã khám</option>
+            <option value="no_show">Vắng mặt</option>
+            <option value="cancelled">Hủy</option>
           </select>
 
           <input
@@ -357,20 +452,22 @@ export default function PatientAppointmentsPage() {
         </div>
 
         {loading ? (
-          <p className={styles.empty}>Dang tai lich hen...</p>
+          <p className={styles.empty}>Đang tải lịch hẹn...</p>
         ) : filteredAppointments.length === 0 ? (
           <p className={styles.empty}>
-            {hasFilters ? "Khong co lich kham phu hop bo loc." : "Chua co lich kham nao."}
+            {hasFilters ? "Không có lịch khám phù hợp bộ lọc." : "Chưa có lịch khám nào."}
           </p>
         ) : (
           <div className={styles.list}>
             {filteredAppointments.map((item) => {
               const record = recordsByAppointmentId.get(item.id) || null;
+              const canUpdatePendingAppointment =
+                (item.status === "pending" || item.status === "confirmed") && !isPastAppointment(item);
               return (
                 <article key={item.id} className={styles.item}>
                   <div className={styles.itemTop}>
                     <div>
-                      <h3 className={styles.itemTitle}>{item.service_name || "Dich vu kham"}</h3>
+                      <h3 className={styles.itemTitle}>{item.service_name || "Dịch vụ khám"}</h3>
                     </div>
                     <span className={`${styles.statusBadge} ${statusClass(item.status)}`}>
                       {statusLabel(item.status)}
@@ -379,51 +476,57 @@ export default function PatientAppointmentsPage() {
 
                   <div className={styles.metaGrid}>
                     <div>
-                      <strong>Lich kham:</strong> {formatTimeRange(item)}
+                      <strong>Lịch khám:</strong> {formatTimeRange(item)}
                     </div>
                     <div>
-                      <strong>Bac si:</strong> {item.doctor_name || "-"}
+                      <strong>Bác sĩ:</strong> {item.doctor_name || "-"}
                     </div>
                     <div>
-                      <strong>Ghi chu dat lich:</strong> {item.note || "-"}
-                    </div>
-                    <div>
-                      <strong>Xu ly phong kham:</strong> {item.admin_note || "-"}
+                      <strong>Ghi chú đặt lịch:</strong>
+                      <div style={{ whiteSpace: "pre-line" }}>{formatBookingNote(item.note)}</div>
                     </div>
                     {item.status === "cancelled" ? (
-                      <>
-                        <div>
-                          <strong>Ai huy:</strong> {parseCancelInfo(item.admin_note).cancelledBy}
-                        </div>
-                        <div>
-                          <strong>Ly do huy:</strong> {parseCancelInfo(item.admin_note).cancelReason}
-                        </div>
-                      </>
-                    ) : null}
+                      <div>
+                        <strong>Xử lý:</strong>
+                        <div>Bên hủy: {parseCancelInfo(item.admin_note).cancelledBy}</div>
+                        <div>Lý do hủy: {parseCancelInfo(item.admin_note).cancelReason}</div>
+                      </div>
+                    ) : parseRescheduleInfo(item.admin_note) ? (
+                      <div>
+                        <strong>Xử lý:</strong>
+                        <div>Lý do đổi lịch: {parseRescheduleInfo(item.admin_note)?.reason}</div>
+                        <div>Lịch trước đổi: {parseRescheduleInfo(item.admin_note)?.fromSchedule}</div>
+                        <div>Lịch sau đổi: {parseRescheduleInfo(item.admin_note)?.toSchedule}</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <strong>Xử lý:</strong> {item.admin_note || "-"}
+                      </div>
+                    )}
                   </div>
 
                   {item.status === "completed" ? (
                     <div className={styles.resultBox}>
-                      <p className={styles.resultTitle}>Ket qua kham</p>
+                      <p className={styles.resultTitle}>Kết quả khám</p>
                       <p>
-                        <strong>Chan doan:</strong> {record?.diagnosis || "Chua cap nhat"}
+                        <strong>Chẩn đoán:</strong> {record?.diagnosis || "Chưa cập nhật"}
                       </p>
                       <p>
-                        <strong>Ghi chu bac si:</strong> {record?.notes || "Chua cap nhat"}
+                        <strong>Ghi chú bác sĩ:</strong> {record?.notes || "Chưa cập nhật"}
                       </p>
                     </div>
                   ) : null}
 
-                  {(item.status === "pending" || item.status === "confirmed") ? (
+                  {canUpdatePendingAppointment ? (
                     <div className={styles.actions}>
                       <button className={styles.secondaryBtn} onClick={() => openReschedule(item)}>
-                        Doi lich
+                        Đổi lịch
                       </button>
                       <button
                         className={styles.cancelBtn}
                         onClick={() => setCancelModal({ appointmentId: item.id, reason: "" })}
                       >
-                        Huy lich
+                        Hủy lịch
                       </button>
                     </div>
                   ) : null}
@@ -431,7 +534,7 @@ export default function PatientAppointmentsPage() {
                   {item.status === "completed" ? (
                     <div className={styles.actions}>
                       <button className={styles.secondaryBtn} onClick={() => openRevisit(item)}>
-                        Dat tai kham
+                        Đặt tái khám
                       </button>
                     </div>
                   ) : null}
@@ -445,7 +548,7 @@ export default function PatientAppointmentsPage() {
       {reschedule ? (
         <div className={styles.modalOverlay}>
           <div className={styles.modalCard}>
-            <h3 className={styles.modalTitle}>Doi lich hen #{reschedule.appointmentId}</h3>
+            <h3 className={styles.modalTitle}>Đổi lịch hẹn</h3>
             <input
               className={styles.control}
               type="date"
@@ -484,13 +587,13 @@ export default function PatientAppointmentsPage() {
                   })
                   .catch((err) => {
                     setReschedule((prev) => (prev ? { ...prev, slots: [], selectedSlotId: 0, loadingSlots: false } : prev));
-                    showToast(err instanceof Error ? err.message : "Khong the tai khung gio doi lich", "error");
+                    showToast(err instanceof Error ? err.message : "Không thể tải khung giờ đổi lịch", "error");
                   });
               }}
             />
 
             {reschedule.loadingSlots ? (
-              <p className={styles.empty}>Dang tai khung gio...</p>
+              <p className={styles.empty}>Đang tải khung giờ...</p>
             ) : (
               <select
                 className={styles.control}
@@ -501,7 +604,7 @@ export default function PatientAppointmentsPage() {
                   )
                 }
               >
-                <option value={0}>Chon khung gio moi</option>
+                <option value={0}>Chọn khung giờ mới</option>
                 {reschedule.slots.map((slot) => (
                   <option key={slot.id} value={slot.id}>
                     {normalizeTime(slot.start_time) || "--:--"} - {normalizeTime(slot.end_time) || "--:--"}
@@ -516,7 +619,7 @@ export default function PatientAppointmentsPage() {
               onChange={(e) =>
                 setReschedule((prev) => (prev ? { ...prev, reason: e.target.value } : prev))
               }
-              placeholder="Ly do doi lich (khong bat buoc)"
+              placeholder="Lý do đổi lịch (không bắt buộc)"
             />
 
             <div className={styles.modalActions}>
@@ -526,7 +629,7 @@ export default function PatientAppointmentsPage() {
                 onClick={() => setReschedule(null)}
                 disabled={savingReschedule}
               >
-                Huy
+                Hủy
               </button>
               <button
                 type="button"
@@ -534,7 +637,7 @@ export default function PatientAppointmentsPage() {
                 onClick={submitReschedule}
                 disabled={savingReschedule}
               >
-                {savingReschedule ? "Dang luu..." : "Luu doi lich"}
+                {savingReschedule ? "Đang lưu..." : "Lưu đổi lịch"}
               </button>
             </div>
           </div>
@@ -544,7 +647,7 @@ export default function PatientAppointmentsPage() {
       {revisit ? (
         <div className={styles.modalOverlay}>
           <div className={styles.modalCard}>
-            <h3 className={styles.modalTitle}>Dat tai kham tu lich #{revisit.appointmentId}</h3>
+            <h3 className={styles.modalTitle}>Đặt tái khám từ lịch #{revisit.appointmentId}</h3>
             <input
               className={styles.control}
               type="date"
@@ -558,7 +661,7 @@ export default function PatientAppointmentsPage() {
             />
 
             {revisit.loadingSlots ? (
-              <p className={styles.empty}>Dang tai khung gio...</p>
+              <p className={styles.empty}>Đang tải khung giờ...</p>
             ) : (
               <select
                 className={styles.control}
@@ -567,7 +670,7 @@ export default function PatientAppointmentsPage() {
                   setRevisit((prev) => (prev ? { ...prev, selectedSlotId: Number(e.target.value) } : prev))
                 }
               >
-                <option value={0}>Chon khung gio tai kham</option>
+                <option value={0}>Chọn khung giờ tái khám</option>
                 {revisit.slots.map((slot) => (
                   <option key={slot.id} value={slot.id}>
                     {normalizeTime(slot.start_time) || "--:--"} - {normalizeTime(slot.end_time) || "--:--"}
@@ -580,7 +683,7 @@ export default function PatientAppointmentsPage() {
               className={styles.textArea}
               value={revisit.reason}
               onChange={(e) => setRevisit((prev) => (prev ? { ...prev, reason: e.target.value } : prev))}
-              placeholder="Ly do tai kham (khong bat buoc)"
+              placeholder="Lý do tái khám (không bắt buộc)"
             />
 
             <div className={styles.modalActions}>
@@ -590,7 +693,7 @@ export default function PatientAppointmentsPage() {
                 onClick={() => setRevisit(null)}
                 disabled={savingRevisit}
               >
-                Huy
+                Hủy
               </button>
               <button
                 type="button"
@@ -598,7 +701,7 @@ export default function PatientAppointmentsPage() {
                 onClick={submitRevisit}
                 disabled={savingRevisit}
               >
-                {savingRevisit ? "Dang luu..." : "Dat tai kham"}
+                {savingRevisit ? "Đang lưu..." : "Đặt tái khám"}
               </button>
             </div>
           </div>
@@ -608,12 +711,12 @@ export default function PatientAppointmentsPage() {
       {cancelModal ? (
         <div className={styles.modalOverlay}>
           <div className={styles.modalCard}>
-            <h3 className={styles.modalTitle}>Huy lich hen #{cancelModal.appointmentId}</h3>
+            <h3 className={styles.modalTitle}>Hủy lịch hẹn</h3>
             <textarea
               className={styles.textArea}
               value={cancelModal.reason}
               onChange={(e) => setCancelModal((prev) => (prev ? { ...prev, reason: e.target.value } : prev))}
-              placeholder="Nhap ly do huy lich (bat buoc)"
+              placeholder="Nhập lý do hủy lịch (bắt buộc)"
             />
 
             <div className={styles.modalActions}>
@@ -623,7 +726,7 @@ export default function PatientAppointmentsPage() {
                 onClick={() => setCancelModal(null)}
                 disabled={savingCancel}
               >
-                Dong
+                Đóng
               </button>
               <button
                 type="button"
@@ -631,7 +734,7 @@ export default function PatientAppointmentsPage() {
                 onClick={() => handleCancel(cancelModal.appointmentId, cancelModal.reason)}
                 disabled={savingCancel}
               >
-                {savingCancel ? "Dang huy..." : "Xac nhan huy"}
+                {savingCancel ? "Đang hủy..." : "Xác nhận hủy"}
               </button>
             </div>
           </div>

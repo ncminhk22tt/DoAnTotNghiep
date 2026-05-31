@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "@/lib/apiClient";
@@ -76,13 +76,22 @@ type ViewVersion = {
 
 const DOSAGE_OPTIONS = Array.from({ length: 10 }, (_, idx) => String(idx + 1));
 const DURATION_OPTIONS = [
-  "Sang",
-  "Chieu",
-  "Toi",
-  "Sang - Chieu",
-  "Sang - Toi",
-  "Chieu - Toi",
-  "Sang - Chieu - Toi",
+  "Sáng",
+  "Trưa",
+  "Chiều",
+  "Tối",
+  "Sáng - Trưa",
+  "Sáng - Chiều",
+  "Sáng - Tối",
+  "Trưa - Chiều",
+  "Trưa - Tối",
+  "Chiều - Tối",
+  "Sáng - Trưa - Chiều",
+  "Sáng - Trưa - Tối",
+  "Sáng - Chiều - Tối",
+  "Trưa - Chiều - Tối",
+  "Sáng - Trưa - Chiều - Tối",
+  "Theo chỉ định của bác sĩ",
 ];
 
 function parseBookingMeta(note: string | null): BookingMeta {
@@ -105,32 +114,46 @@ function parseBookingMeta(note: string | null): BookingMeta {
 
   return {
     full_name: readByPrefix("Ho va ten:"),
-    phone: readByPrefix("So dien thoai:"),
-    gender: readByPrefix("Gioi tinh:"),
-    birth_year: readByPrefix("Nam sinh:"),
-    reason: readByPrefix("Ly do kham:"),
+    phone: readByPrefix("Số điện thoại:"),
+    gender: readByPrefix("Giới tính:"),
+    birth_year: readByPrefix("Năm sinh:"),
+    reason: readByPrefix("Lý do khám:"),
   };
 }
 
 function statusLabel(status: MedicalRecordRow["status"]) {
-  if (status === "pending") return "Cho xac nhan";
-  if (status === "confirmed") return "Da xac nhan";
-  if (status === "completed") return "Da hoan tat";
-  if (status === "cancelled") return "Da huy";
+  if (status === "pending") return "Chờ xác nhận";
+  if (status === "confirmed") return "Đã xác nhận";
+  if (status === "completed") return "Đã hoàn tất";
+  if (status === "cancelled") return "Đã hủy";
   return "-";
 }
 
 function formatSchedule(row: MedicalRecordRow) {
   if (!row.work_date) return "-";
+  const parsedDate = new Date(row.work_date);
+  const dateText = Number.isNaN(parsedDate.getTime())
+    ? row.work_date.slice(0, 10)
+    : `${String(parsedDate.getDate()).padStart(2, "0")}-${String(parsedDate.getMonth() + 1).padStart(2, "0")}-${parsedDate.getFullYear()}`;
   const start = row.start_time ? row.start_time.slice(0, 5) : "--:--";
   const end = row.end_time ? row.end_time.slice(0, 5) : "--:--";
-  return `${row.work_date} (${start} - ${end})`;
+  return `${dateText} (${start} - ${end})`;
+}
+
+function formatDisplayDate(date: string | null) {
+  if (!date) return "-";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const year = parsed.getFullYear();
+  return `${day}-${month}-${year}`;
 }
 
 function formatRevisionLabel(createdAt: string, idx: number) {
   const date = new Date(createdAt);
   const d = Number.isNaN(date.getTime()) ? createdAt : date.toLocaleString("vi-VN");
-  return `Lan sua ${idx + 1} - ${d}`;
+  return `Lần sửa ${idx + 1} - ${d}`;
 }
 
 function validatePrescriptionItems(items: EditablePrescriptionInput[]) {
@@ -177,11 +200,21 @@ export default function DoctorMedicalRecordsPage() {
     { medicine_name: "", dosage: "", duration: "" },
   ]);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState(false);
   const [revisions, setRevisions] = useState<RevisionRow[]>([]);
   const [loadingRevisions, setLoadingRevisions] = useState(false);
   const [selectedVersionKey, setSelectedVersionKey] = useState("current");
+
+  useEffect(() => {
+    document.title = "---";
+  }, []);
+
+  function clearFilters() {
+    setServiceFilter("all");
+    setDateFilter("");
+  }
 
   async function loadRecords() {
     try {
@@ -194,7 +227,7 @@ export default function DoctorMedicalRecordsPage() {
         setSelectedRecordId((prev) => prev ?? data[0].id);
       }
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Khong the tai thong tin kham", "error");
+      showToast(error instanceof Error ? error.message : "Không thể tải thông tin khám", "error");
     } finally {
       setLoading(false);
     }
@@ -210,7 +243,7 @@ export default function DoctorMedicalRecordsPage() {
       );
       setPrescriptions(res.data || []);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Khong the tai don thuoc", "error");
+      showToast(error instanceof Error ? error.message : "Không thể tải đơn thuốc", "error");
     } finally {
       setLoadingPrescriptions(false);
     }
@@ -269,7 +302,7 @@ export default function DoctorMedicalRecordsPage() {
   const versions = useMemo<ViewVersion[]>(() => {
     const current: ViewVersion = {
       key: "current",
-      label: "Ket qua hien tai",
+      label: "Kết quả hiện tại",
       diagnosis: selectedRecord?.diagnosis || null,
       notes: selectedRecord?.notes || null,
       prescriptionItems: currentPrescriptionItems,
@@ -346,20 +379,17 @@ export default function DoctorMedicalRecordsPage() {
   async function handleSaveEdit() {
     if (!selectedRecord) return;
     if (!editDiagnosis.trim()) {
-      showToast("Chan doan khong duoc de trong", "error");
+      showToast("Chẩn đoán không được để trống", "error");
       return;
     }
     const { hasPartialRow, validItems: validPrescriptionItems } = validatePrescriptionItems(editPrescriptionItems);
     if (hasPartialRow) {
-      showToast("Thong tin thuoc chua day du. Moi dong can du Ten thuoc, Lieu, Thoi gian dung.", "error");
-      return;
-    }
-    if (validPrescriptionItems.length === 0) {
-      showToast("Don thuoc phai co it nhat 1 thuoc hop le", "error");
+      showToast("Thông tin thuốc chưa đầy đủ. Mỗi dòng cần đủ Tên thuốc, Liều, Thời gian dùng.", "error");
       return;
     }
 
     try {
+      setShowSaveConfirm(false);
       setSavingEdit(true);
       const token = getAccessToken();
       await apiClient.patch<{ success: boolean; message?: string }>(
@@ -369,31 +399,41 @@ export default function DoctorMedicalRecordsPage() {
       );
 
       const targetPrescriptionId = prescriptions[0]?.id;
-      if (targetPrescriptionId) {
+      if (validPrescriptionItems.length > 0 && targetPrescriptionId) {
         await apiClient.patch<{ success: boolean; message?: string }>(
           `/api/doctor/prescriptions/${targetPrescriptionId}`,
           { items: validPrescriptionItems },
           token
         );
-      } else {
+      } else if (validPrescriptionItems.length > 0) {
         await apiClient.post<{ success: boolean; message?: string }>(
           `/api/doctor/medical-records/${selectedRecord.id}/prescriptions`,
           { items: validPrescriptionItems },
           token
         );
+      } else if (targetPrescriptionId) {
+        await apiClient.delete<{ success: boolean; message?: string }>(
+          `/api/doctor/prescriptions/${targetPrescriptionId}`,
+          token
+        );
       }
 
-      showToast("Da cap nhat ket qua kham va don thuoc", "success");
+      showToast("Đã cập nhật kết quả khám và đơn thuốc", "success");
       setIsEditing(false);
       setSelectedVersionKey("current");
       await loadRecords();
       await loadPrescriptions(selectedRecord.id);
       await loadRevisions(selectedRecord.id);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Khong the cap nhat ket qua kham", "error");
+      showToast(error instanceof Error ? error.message : "Không thể cập nhật kết quả khám", "error");
     } finally {
       setSavingEdit(false);
     }
+  }
+
+  function requestSaveEdit() {
+    if (!selectedRecord || savingEdit) return;
+    setShowSaveConfirm(true);
   }
 
   async function handleDeleteRecord() {
@@ -405,7 +445,7 @@ export default function DoctorMedicalRecordsPage() {
         `/api/doctor/medical-records/${selectedRecord.id}`,
         token
       );
-      showToast("Da xoa ket qua kham", "success");
+      showToast("Đã xóa kết quả khám", "success");
       setShowDeleteConfirm(false);
       setIsEditing(false);
       setSelectedVersionKey("current");
@@ -413,7 +453,7 @@ export default function DoctorMedicalRecordsPage() {
       setRevisions([]);
       await loadRecords();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Khong the xoa ket qua kham", "error");
+      showToast(error instanceof Error ? error.message : "Không thể xóa kết quả khám", "error");
     } finally {
       setDeletingRecord(false);
     }
@@ -441,12 +481,11 @@ export default function DoctorMedicalRecordsPage() {
 <html lang=\"vi\">
 <head>
   <meta charset=\"utf-8\" />
-  <title>Phieu kham #${selectedRecord.id}</title>
+  <title></title>
 </head>
 <body style=\"font-family:Arial,sans-serif;padding:20px;color:#111;\">
-  <h2 style=\"margin:0 0 10px;\">Phiếu khám bệnh</h2>
+  <div style=\"margin:0 0 18px;font-family:'Segoe UI',Arial,sans-serif;font-size:24px;font-weight:800;line-height:1.2;text-align:center;letter-spacing:0.5px;\">PHIẾU KHÁM BỆNH</div>
   <div style=\"margin-bottom:14px;\">
-    <div><strong>Mã hồ sơ:</strong> #${selectedRecord.id}</div>
     <div><strong>Bác sĩ:</strong> ${escapeHtml(doctorUser?.full_name || "-")}</div>
     <div><strong>Dịch vụ:</strong> ${escapeHtml(selectedRecord.service_name || "-")}</div>
     <div><strong>Lịch khám:</strong> ${escapeHtml(formatSchedule(selectedRecord))}</div>
@@ -485,41 +524,61 @@ export default function DoctorMedicalRecordsPage() {
 </body>
 </html>`;
 
-    const printWindow = window.open("", "_blank", "width=1000,height=760");
-    if (!printWindow) {
-      showToast("Trình duyệt đang chặn popup in.", "error");
-      return;
-    }
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.style.visibility = "hidden";
+    iframe.srcdoc = html;
+
+    const cleanup = () => {
+      setTimeout(() => {
+        if (iframe.parentNode) {
+          iframe.parentNode.removeChild(iframe);
+        }
+      }, 1000);
+    };
+
+    iframe.onload = () => {
+      const frameWindow = iframe.contentWindow;
+      if (!frameWindow) {
+        cleanup();
+        return;
+      }
+      frameWindow.focus();
+      frameWindow.print();
+      cleanup();
+    };
+
+    document.body.appendChild(iframe);
   }
 
   return (
     <div className={styles.page}>
-      <h2 className={styles.title}>Thong tin kham benh</h2>
+      <h2 className={styles.title}>Thông tin khám bệnh</h2>
 
       <div className={styles.layout}>
         <section className={styles.leftCard}>
-          <h3 className={styles.subTitle}>Danh sach ho so da kham</h3>
+          <h3 className={styles.subTitle}>Danh sách hồ sơ đã khám</h3>
           <div className={styles.filterRow}>
-            <label className={styles.filterLabel}>Chon dich vu</label>
+            <label className={styles.filterLabel}>Chọn dịch vụ</label>
             <select
               className={styles.filterSelect}
               value={serviceFilter}
               onChange={(e) => setServiceFilter(e.target.value)}
               disabled={!canChangeRecord}
             >
-              <option value="all">Tat ca dich vu</option>
+              <option value="all">Tất cả dịch vụ</option>
               {serviceOptions.map((serviceName) => (
                 <option key={serviceName} value={serviceName}>
                   {serviceName}
                 </option>
               ))}
             </select>
-            <label className={styles.filterLabel}>Chon ngay</label>
+            <label className={styles.filterLabel}>Chọn ngày</label>
             <input
               type="date"
               className={styles.filterSelect}
@@ -528,6 +587,14 @@ export default function DoctorMedicalRecordsPage() {
               disabled={!canChangeRecord}
             />
           </div>
+          <button
+            className={styles.clearFilterButton}
+            type="button"
+            onClick={clearFilters}
+            disabled={!canChangeRecord || (serviceFilter === "all" && !dateFilter)}
+          >
+            Xóa lọc
+          </button>
           <div className={styles.listWrap}>
             {filteredRecords.map((r) => (
               <button
@@ -540,27 +607,34 @@ export default function DoctorMedicalRecordsPage() {
                 disabled={!canChangeRecord}
               >
                 <div className={styles.itemTitle}>
-                  {parseBookingMeta(r.appointment_note).full_name || r.patient_name || "-"}
+                  Tên: {parseBookingMeta(r.appointment_note).full_name || r.patient_name || "-"}
                 </div>
-                <div className={styles.itemMeta}>HS #{r.id} | {formatSchedule(r)}</div>
+                <div className={styles.itemMeta}>
+                  <div>Số điện thoại: {parseBookingMeta(r.appointment_note).phone || r.patient_phone || "-"}</div>
+                  <div>Dịch vụ: {r.service_name || "-"}</div>
+                  <div>
+                    Ngày khám: {formatDisplayDate(r.work_date)} ({r.start_time?.slice(0, 5) || "--:--"} -{" "}
+                    {r.end_time?.slice(0, 5) || "--:--"})
+                  </div>
+                </div>
               </button>
             ))}
             {!loading && filteredRecords.length === 0 ? (
-              <div className={styles.empty}>Khong co ho so cho dich vu nay.</div>
+              <div className={styles.empty}>Không có hồ sơ cho dịch vụ này.</div>
             ) : null}
           </div>
-          {isEditing ? <div className={styles.lockHint}>Dang o che do sua, khong the chuyen ho so khac.</div> : null}
+          {isEditing ? <div className={styles.lockHint}>Đang ở chế độ sửa, không thể chuyển hồ sơ khác.</div> : null}
         </section>
 
         <section className={styles.rightCard}>
           {!selectedRecord ? (
-            <div className={styles.empty}>Vui long chon 1 ho so ben trai.</div>
+            <div className={styles.empty}>Không có kết quả</div>
           ) : (
             <div className={styles.infoGrid}>
               <div className={styles.blockWide}>
                 <div className={styles.topRow}>
                   <div className={styles.versionWrap}>
-                    <label className={styles.filterLabel}>Lich su ket qua</label>
+                    <label className={styles.filterLabel}>Lịch sử kết quả</label>
                     <select
                       className={styles.filterSelect}
                       value={selectedVersionKey}
@@ -573,7 +647,7 @@ export default function DoctorMedicalRecordsPage() {
                         </option>
                       ))}
                     </select>
-                    {loadingRevisions ? <div className={styles.smallMuted}>Dang tai lich su...</div> : null}
+                    {loadingRevisions ? <div className={styles.smallMuted}>Đang tải lịch sử...</div> : null}
                   </div>
 
                   <div className={styles.actionRow}>
@@ -586,29 +660,21 @@ export default function DoctorMedicalRecordsPage() {
                             setSelectedVersionKey("current");
                           }}
                           disabled={!viewingCurrentVersion}
-                          title={!viewingCurrentVersion ? "Chi duoc sua o ban hien tai" : undefined}
+                          title={!viewingCurrentVersion ? "Chỉ được sửa ở bản hiện tại" : undefined}
                         >
-                          Sua ket qua
-                        </button>
-                        <button
-                          className={`${styles.actionButton} ${styles.actionDanger}`}
-                          onClick={() => setShowDeleteConfirm(true)}
-                          disabled={!viewingCurrentVersion}
-                          title={!viewingCurrentVersion ? "Chi duoc xoa o ban hien tai" : undefined}
-                        >
-                          Xoa ket qua
+                          Sửa kết quả
                         </button>
                         <button
                           className={`${styles.actionButton} ${styles.actionGhost}`}
                           onClick={printCurrentRecord}
                         >
-                          In phieu kham
+                          In phiếu khám
                         </button>
                       </>
                     ) : (
                       <>
-                        <button className={styles.actionButton} onClick={handleSaveEdit} disabled={savingEdit}>
-                          {savingEdit ? "Dang luu..." : "Luu thay doi"}
+                        <button className={styles.actionButton} onClick={requestSaveEdit} disabled={savingEdit}>
+                          {savingEdit ? "Đang lưu..." : "Lưu thay đổi"}
                         </button>
                         <button
                           className={`${styles.actionButton} ${styles.actionGhost}`}
@@ -619,7 +685,7 @@ export default function DoctorMedicalRecordsPage() {
                           }}
                           disabled={savingEdit}
                         >
-                          Huy
+                          Hủy
                         </button>
                       </>
                     )}
@@ -628,39 +694,39 @@ export default function DoctorMedicalRecordsPage() {
               </div>
 
               <div className={styles.block}>
-                <h4 className={styles.blockTitle}>Thong tin benh nhan</h4>
-                <div><strong>Ho ten:</strong> {bookingMeta.full_name || selectedRecord.patient_name || "-"}</div>
-                <div><strong>So dien thoai:</strong> {bookingMeta.phone || selectedRecord.patient_phone || "-"}</div>
-                <div><strong>Gioi tinh:</strong> {bookingMeta.gender || "-"}</div>
-                <div><strong>Nam sinh:</strong> {bookingMeta.birth_year || "-"}</div>
+                <h4 className={styles.blockTitle}>Thông tin bệnh nhân</h4>
+                <div><strong>Họ tên:</strong> {bookingMeta.full_name || selectedRecord.patient_name || "-"}</div>
+                <div><strong>Số điện thoại:</strong> {bookingMeta.phone || selectedRecord.patient_phone || "-"}</div>
+                <div><strong>Giới tính:</strong> {bookingMeta.gender || "-"}</div>
+                <div><strong>Năm sinh:</strong> {bookingMeta.birth_year || "-"}</div>
               </div>
 
               <div className={styles.block}>
-                <h4 className={styles.blockTitle}>Thong tin lich kham</h4>
-                <div><strong>Dich vu:</strong> {selectedRecord.service_name || "-"}</div>
-                <div><strong>Lich kham:</strong> {formatSchedule(selectedRecord)}</div>
-                <div><strong>Phong:</strong> {selectedRecord.room || "-"}</div>
-                <div><strong>Trang thai:</strong> {statusLabel(selectedRecord.status)}</div>
+                <h4 className={styles.blockTitle}>Thông tin lịch khám</h4>
+                <div><strong>Dịch vụ:</strong> {selectedRecord.service_name || "-"}</div>
+                <div><strong>Lịch khám:</strong> {formatSchedule(selectedRecord)}</div>
+                <div><strong>Phòng:</strong> {selectedRecord.room || "-"}</div>
+                <div><strong>Trạng thái:</strong> {statusLabel(selectedRecord.status)}</div>
               </div>
 
               <div className={styles.blockWide}>
-                <h4 className={styles.blockTitle}>Thong tin kham</h4>
-                <div><strong>Ly do kham:</strong> {bookingMeta.reason || "-"}</div>
+                <h4 className={styles.blockTitle}>Thông tin khám</h4>
+                <div><strong>Lý do khám:</strong> {bookingMeta.reason || "-"}</div>
                 {!isEditing ? (
                   <>
-                    <div><strong>Chan doan:</strong> {selectedVersion?.diagnosis || "-"}</div>
-                    <div><strong>Ghi chu kham:</strong> {selectedVersion?.notes || "-"}</div>
+                    <div><strong>Chẩn đoán:</strong> {selectedVersion?.diagnosis || "-"}</div>
+                    <div><strong>Ghi chú khám:</strong> {selectedVersion?.notes || "-"}</div>
                   </>
                 ) : (
                   <div className={styles.editForm}>
-                    <label className={styles.filterLabel}>Chan doan</label>
+                    <label className={styles.filterLabel}>Chẩn đoán</label>
                     <textarea
                       className={styles.textarea}
                       value={editDiagnosis}
                       onChange={(e) => setEditDiagnosis(e.target.value)}
                       rows={3}
                     />
-                    <label className={styles.filterLabel}>Ghi chu kham</label>
+                    <label className={styles.filterLabel}>Ghi chú khám</label>
                     <textarea
                       className={styles.textarea}
                       value={editNotes}
@@ -672,19 +738,34 @@ export default function DoctorMedicalRecordsPage() {
               </div>
 
               <div className={styles.blockWide}>
-                <h4 className={styles.blockTitle}>Don thuoc</h4>
+                <h4 className={styles.blockTitle}>Đơn thuốc</h4>
                 {!isEditing ? (
                   loadingPrescriptions ? (
-                    <div className={styles.empty}>Dang tai don thuoc...</div>
+                    <div className={styles.empty}>Đang tải đơn thuốc...</div>
                   ) : (selectedVersion?.prescriptionItems.length || 0) === 0 ? (
-                    <div className={styles.empty}>Khong co thuoc duoc ke.</div>
+                    <div className={styles.empty}>Không có thuốc được kê.</div>
                   ) : (
-                    <div className={styles.medicineList}>
-                      {(selectedVersion?.prescriptionItems || []).map((it, idx) => (
-                        <div key={`${it.id || idx}`} className={styles.medicineItem}>
-                          {idx + 1}. {it.medicine_name} | Lieu: {it.dosage} | Thoi gian dung: {it.duration}
-                        </div>
-                      ))}
+                    <div className={styles.tableWrap}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr>
+                            <th className={styles.tableHead}>#</th>
+                            <th className={styles.tableHead}>Tên thuốc</th>
+                            <th className={styles.tableHead}>Liều</th>
+                            <th className={styles.tableHead}>Thời gian dùng</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(selectedVersion?.prescriptionItems || []).map((it, idx) => (
+                            <tr key={`${it.id || idx}`}>
+                              <td className={styles.tableCell}>{idx + 1}</td>
+                              <td className={styles.tableCell}>{it.medicine_name}</td>
+                              <td className={styles.tableCell}>{it.dosage}</td>
+                              <td className={styles.tableCell}>{it.duration}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )
                 ) : (
@@ -695,14 +776,14 @@ export default function DoctorMedicalRecordsPage() {
                           className={styles.textInput}
                           value={item.medicine_name}
                           onChange={(e) => updateEditPrescriptionItem(idx, "medicine_name", e.target.value)}
-                          placeholder="Ten thuoc"
+                          placeholder="Tên thuốc"
                         />
                         <select
                           className={styles.textInput}
                           value={item.dosage}
                           onChange={(e) => updateEditPrescriptionItem(idx, "dosage", e.target.value)}
                         >
-                          <option value="">Lieu</option>
+                          <option value="">Liều</option>
                           {DOSAGE_OPTIONS.map((opt) => (
                             <option key={`dosage-${opt}`} value={opt}>
                               {opt}
@@ -714,7 +795,7 @@ export default function DoctorMedicalRecordsPage() {
                           value={item.duration}
                           onChange={(e) => updateEditPrescriptionItem(idx, "duration", e.target.value)}
                         >
-                          <option value="">Thoi gian dung</option>
+                          <option value="">Thời gian dùng</option>
                           {DURATION_OPTIONS.map((opt) => (
                             <option key={`duration-${opt}`} value={opt}>
                               {opt}
@@ -726,13 +807,13 @@ export default function DoctorMedicalRecordsPage() {
                           onClick={() => removeEditPrescriptionItem(idx)}
                           type="button"
                         >
-                          Xoa
+                          Xóa
                         </button>
                       </div>
                     ))}
                     <div>
                       <button className={`${styles.actionButton} ${styles.actionGhost}`} onClick={addEditPrescriptionItem} type="button">
-                        + Them thuoc
+                        + Thêm thuốc
                       </button>
                     </div>
                   </div>
@@ -746,9 +827,9 @@ export default function DoctorMedicalRecordsPage() {
       {showDeleteConfirm && selectedRecord ? (
         <div className={styles.modalOverlay}>
           <div className={styles.modalCard}>
-            <h4 className={styles.modalTitle}>Xac nhan xoa ket qua kham</h4>
+            <h4 className={styles.modalTitle}>Xác nhận xóa kết quả khám</h4>
             <p className={styles.modalText}>
-              Ban chac chan muon xoa ho so #{selectedRecord.id}? Hanh dong nay khong the hoan tac.
+              Bạn chắc chắn muốn xóa hồ sơ #{selectedRecord.id}? Hành động này không thể hoàn tác.
             </p>
             <div className={styles.modalActions}>
               <button
@@ -756,14 +837,39 @@ export default function DoctorMedicalRecordsPage() {
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={deletingRecord}
               >
-                Huy
+                Hủy
               </button>
               <button
                 className={`${styles.actionButton} ${styles.actionDanger}`}
                 onClick={handleDeleteRecord}
                 disabled={deletingRecord}
               >
-                {deletingRecord ? "Dang xoa..." : "Xoa"}
+                {deletingRecord ? "Đang xóa..." : "Xóa"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showSaveConfirm && selectedRecord ? (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <h4 className={styles.modalTitle}>Xác nhận lưu thay đổi</h4>
+            <p className={styles.modalText}>Bạn chắc chắn muốn lưu cập nhật?</p>
+            <div className={styles.modalActions}>
+              <button
+                className={`${styles.actionButton} ${styles.actionGhost}`}
+                onClick={() => setShowSaveConfirm(false)}
+                disabled={savingEdit}
+              >
+                Hủy
+              </button>
+              <button
+                className={`${styles.actionButton}`}
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+              >
+                {savingEdit ? "Đang lưu..." : "Xác nhận"}
               </button>
             </div>
           </div>
@@ -772,3 +878,4 @@ export default function DoctorMedicalRecordsPage() {
     </div>
   );
 }
+

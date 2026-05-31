@@ -20,6 +20,92 @@ type Service = {
   logo_url: string | null;
 };
 
+type DropdownOption = {
+  value: number;
+  label: string;
+};
+
+type SpecialtyDropdownProps = {
+  label: string;
+  value: number | "";
+  placeholder: string;
+  options: DropdownOption[];
+  onChange: (value: number | "") => void;
+  disabled?: boolean;
+};
+
+function SpecialtyDropdown({
+  label,
+  value,
+  placeholder,
+  options,
+  onChange,
+  disabled = false,
+}: SpecialtyDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const selected = options.find((option) => option.value === value) || null;
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!wrapperRef.current) return;
+      if (!wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className={styles.field} ref={wrapperRef}>
+      <label className={styles.label}>{label}</label>
+      <button
+        type="button"
+        className={`${styles.input} ${styles.dropdownButton}`}
+        onClick={() => {
+          if (!disabled) setOpen((prev) => !prev);
+        }}
+        disabled={disabled}
+      >
+        <span className={selected ? styles.dropdownValue : styles.dropdownPlaceholder}>
+          {selected ? selected.label : placeholder}
+        </span>
+        <span className={styles.dropdownArrow}>▾</span>
+      </button>
+
+      {open && !disabled ? (
+        <div className={styles.dropdownMenu}>
+          <button
+            type="button"
+            className={styles.dropdownItem}
+            onClick={() => {
+              onChange(0);
+              setOpen(false);
+            }}
+          >
+            {placeholder}
+          </button>
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={styles.dropdownItem}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function AdminServicesPage() {
   const { showToast } = useToast();
 
@@ -27,7 +113,7 @@ export default function AdminServicesPage() {
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
 
   const [name, setName] = useState("");
-  const [specialtyId, setSpecialtyId] = useState<number>(0);
+  const [specialtyId, setSpecialtyId] = useState<number | "">("");
   const [description, setDescription] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -39,6 +125,11 @@ export default function AdminServicesPage() {
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const specialtyOptions = useMemo(
+    () => specialties.map((specialty) => ({ value: specialty.id, label: specialty.name })),
+    [specialties]
+  );
 
   async function loadAll() {
     const token = getAccessToken();
@@ -67,11 +158,16 @@ export default function AdminServicesPage() {
   function resetForm() {
     setName("");
     setDescription("");
-    setSpecialtyId(0);
+    setSpecialtyId("");
     setLogoUrl("");
     setLogoFile(null);
     if (logoInputRef.current) logoInputRef.current.value = "";
     setEditing(null);
+  }
+
+  function resetFilters() {
+    setFilterSpecialtyId(0);
+    setFilterKeyword("");
   }
 
   async function uploadLogo(file: File): Promise<string> {
@@ -102,7 +198,7 @@ export default function AdminServicesPage() {
       return;
     }
 
-    if (!specialtyId || specialtyId <= 0) {
+    if (!specialtyId || Number(specialtyId) <= 0) {
       showToast("Vui lòng chọn chuyên khoa", "error");
       return;
     }
@@ -120,7 +216,7 @@ export default function AdminServicesPage() {
       const token = getAccessToken();
       const payload = {
         name,
-        specialty_id: specialtyId,
+        specialty_id: Number(specialtyId),
         description,
         logo_url: finalLogoUrl.trim() || null,
       };
@@ -163,7 +259,7 @@ export default function AdminServicesPage() {
     setLogoUrl(item.logo_url || "");
     setLogoFile(null);
     if (logoInputRef.current) logoInputRef.current.value = "";
-    setSpecialtyId(item.specialty_id);
+    setSpecialtyId(item.specialty_id || "");
   }
 
   useEffect(() => {
@@ -188,21 +284,13 @@ export default function AdminServicesPage() {
             />
           </div>
 
-          <div className={styles.field}>
-            <label className={styles.label}>Chuyên khoa</label>
-            <select
-              value={specialtyId}
-              onChange={(e) => setSpecialtyId(Number(e.target.value))}
-              className={`${styles.input} ${styles.selectInput}`}
-            >
-              <option value={0}>Chọn chuyên khoa</option>
-              {specialties.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SpecialtyDropdown
+            label="Chuyên khoa"
+            value={specialtyId}
+            placeholder="Chọn chuyên khoa"
+            options={specialtyOptions}
+            onChange={(next) => setSpecialtyId(next === 0 ? "" : next)}
+          />
         </div>
 
         <div className={styles.field}>
@@ -254,21 +342,13 @@ export default function AdminServicesPage() {
 
       <div className={styles.filterCard}>
         <div className={styles.row}>
-          <div className={styles.field}>
-            <label className={styles.label}>Tìm theo chuyên khoa</label>
-            <select
-              value={filterSpecialtyId}
-              onChange={(e) => setFilterSpecialtyId(Number(e.target.value))}
-              className={`${styles.input} ${styles.selectInput}`}
-            >
-              <option value={0}>Tất cả chuyên khoa</option>
-              {specialties.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SpecialtyDropdown
+            label="Tìm theo chuyên khoa"
+            value={filterSpecialtyId}
+            placeholder="Tất cả chuyên khoa"
+            options={specialtyOptions}
+            onChange={(next) => setFilterSpecialtyId(typeof next === "number" ? next : 0)}
+          />
 
           <div className={styles.field}>
             <label className={styles.label}>Tìm theo dịch vụ</label>
@@ -279,6 +359,16 @@ export default function AdminServicesPage() {
               className={styles.input}
             />
           </div>
+        </div>
+
+        <div className={styles.buttonRow}>
+          <button
+            type="button"
+            className={styles.secondaryBtn}
+            onClick={resetFilters}
+          >
+            Xóa lọc
+          </button>
         </div>
       </div>
 

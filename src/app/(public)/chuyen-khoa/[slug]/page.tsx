@@ -342,7 +342,7 @@ export default function SpecialtyDetailPage({
     const user = getAuthUser("patient");
     const token = getAccessToken("patient");
     if (!user || !token) {
-      setBookingError("Vui long dang nhap de dat lich.");
+      setBookingError("Vui lòng đăng nhập để đặt lịch.");
       router.push("/login");
       return;
     }
@@ -376,10 +376,10 @@ export default function SpecialtyDetailPage({
     const note = [
       "[Thong tin dat lich]",
       `Ho va ten: ${fullName}`,
-      `So dien thoai: ${phone}`,
-      `Gioi tinh: ${genderLabel}`,
-      `Nam sinh: ${birthYear}`,
-      `Ly do kham: ${reason}`,
+      `Số điện thoại: ${phone}`,
+      `Giới tính: ${genderLabel}`,
+      `Năm sinh: ${birthYear}`,
+      `Lý do khám: ${reason}`,
     ].join("\n");
 
     try {
@@ -390,10 +390,9 @@ export default function SpecialtyDetailPage({
       await loadSlots(selectedDoctorId, workDate, effectiveServiceId);
       setShowBookingForm(false);
       setBookingMessage("Đặt lịch thành công.");
-      showToast("Dat lich thanh cong.", "success");
-      setWaitlistMessage("");
+      showToast("Đặt lịch thành công.", "success");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Dat lich that bai";
+      const message = err instanceof Error ? err.message : "Đặt lịch thất bại";
       setBookingError(message);
       if (message.toLowerCase().includes("dang nhap") || message.toLowerCase().includes("token")) {
         router.push("/login");
@@ -495,19 +494,9 @@ export default function SpecialtyDetailPage({
   );
   const derivedService = useMemo(() => {
     if (selectedService) return selectedService;
-    const firstDoctorService = doctorDetail?.services?.[0];
-    if (!firstDoctorService) return null;
-    const fromList = services.find((s) => s.id === firstDoctorService.service_id);
-    if (fromList) return fromList;
-    return {
-      id: firstDoctorService.service_id,
-      name: firstDoctorService.service_name,
-      specialty_id: specialty?.id || null,
-      specialty_name: specialty?.name || null,
-      description: null,
-    } as Service;
-  }, [selectedService, doctorDetail, services, specialty]);
-  const effectiveServiceId = derivedService?.id || 0;
+    return null;
+  }, [selectedService]);
+  const effectiveServiceId = selectedServiceId > 0 ? selectedServiceId : 0;
   const specialtyPath = useMemo(() => {
     if (!specialty) return "/chuyen-khoa";
     return `/dich-vu/${slugify(specialty.name)}-s${specialty.id}`;
@@ -518,7 +507,7 @@ export default function SpecialtyDetailPage({
     return derivedService ? `${base}?service_id=${derivedService.id}` : base;
   }, [specialty, derivedService]);
   const doctorServiceNames = useMemo(() => {
-    if (!doctorDetail?.services?.length) return "Dang cap nhat";
+    if (!doctorDetail?.services?.length) return "Đang cập nhật";
     return doctorDetail.services.map((s) => s.service_name).join(", ");
   }, [doctorDetail]);
   const serviceOptions = useMemo(() => doctorDetail?.services || [], [doctorDetail]);
@@ -597,7 +586,7 @@ export default function SpecialtyDetailPage({
     return (
       <div className={styles.page}>
         <main className={styles.container}>
-          <section className={styles.topBar}>Dang tai...</section>
+          <section className={styles.topBar}>Đang tải...</section>
         </main>
       </div>
     );
@@ -608,7 +597,7 @@ export default function SpecialtyDetailPage({
       <div className={styles.page}>
         <main className={styles.container}>
           <section className={styles.topBar}>
-            Khong tim thay chuyen khoa. <Link href="/chuyen-khoa">Ve danh sach</Link>
+            Không tìm thấy chuyên khoa. <Link href="/chuyen-khoa">Về danh sách</Link>
           </section>
         </main>
       </div>
@@ -730,7 +719,7 @@ export default function SpecialtyDetailPage({
             </p>
 
             <button className={styles.bookBtn} onClick={handleOpenBookingForm} disabled={submitting}>
-              {submitting ? "Dang dat lich..." : "Đặt lịch khám"}
+              {submitting ? "Đang đặt lịch..." : "Đặt lịch khám"}
             </button>
             {!authUser && needLoginHint ? (
               <button type="button" className={styles.loginNowBtn} onClick={goToLoginFromCurrentPage}>
@@ -744,7 +733,7 @@ export default function SpecialtyDetailPage({
         <section className={styles.doctorList}>
           <p className={styles.label}>Danh sách bác sĩ</p>
           {doctors.length === 0 ? (
-            <p className={styles.descText}>Chua co bac si phu hop voi bo loc hien tai.</p>
+            <p className={styles.descText}>Chưa có bác sĩ phù hợp với bộ lọc hiện tại.</p>
           ) : (
             <div className={styles.doctorItems}>
               {doctors.map((d) => (
@@ -849,7 +838,7 @@ export default function SpecialtyDetailPage({
         <div className={styles.modalOverlay}>
           <div className={styles.reviewModalCard}>
             <h3 className={styles.modalTitle}>Danh sách đánh giá</h3>
-            {reviewsLoading ? <p className={styles.descText}>Dang tai danh gia...</p> : null}
+            {reviewsLoading ? <p className={styles.descText}>Đang tải đánh giá...</p> : null}
             {!reviewsLoading && doctorReviews.length === 0 ? (
               <p className={styles.descText}>Chưa có đánh giá nào.</p>
             ) : null}
@@ -861,7 +850,7 @@ export default function SpecialtyDetailPage({
                       <strong>Nguời đánh giá:</strong> {review.reviewer_name}
                     </p>
                     <p className={styles.reviewLine}>
-                      <strong>Nội dung:</strong> {review.comment?.trim() || "(Khong co noi dung)"}
+                      <strong>Nội dung:</strong> {review.comment?.trim() || "(Không có nội dung)"}
                     </p>
                     <p className={styles.reviewLine}>
                       <strong>Số sao:</strong> {review.rating}/5

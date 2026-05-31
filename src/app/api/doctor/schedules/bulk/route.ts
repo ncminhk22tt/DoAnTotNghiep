@@ -15,6 +15,7 @@ type BulkUpdateBody = {
   end_time?: unknown;
   update_service_id?: unknown;
   update_work_date?: unknown;
+  slot_duration?: unknown;
   price?: unknown;
   max_patients?: unknown;
   room?: unknown;
@@ -47,7 +48,7 @@ export async function PATCH(req: NextRequest) {
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "doctor") {
       return NextResponse.json(
-        { success: false, message: "Khong dung quyen doctor" },
+        { success: false, message: "Không đúng quyền bác sĩ" },
         { status: 403 }
       );
     }
@@ -55,7 +56,7 @@ export async function PATCH(req: NextRequest) {
     const doctorId = await getDoctorProfileId(authUser.id);
     if (!doctorId) {
       return NextResponse.json(
-        { success: false, message: "Doctor profile khong ton tai" },
+        { success: false, message: "Hồ sơ bác sĩ không tồn tại" },
         { status: 404 }
       );
     }
@@ -65,7 +66,7 @@ export async function PATCH(req: NextRequest) {
       body = (await req.json()) as BulkUpdateBody;
     } catch {
       return NextResponse.json(
-        { success: false, message: "JSON khong hop le" },
+        { success: false, message: "JSON không hợp lệ" },
         { status: 400 }
       );
     }
@@ -80,8 +81,10 @@ export async function PATCH(req: NextRequest) {
       typeof body.update_service_id === "number" ? body.update_service_id : null;
     const updateWorkDate =
       typeof body.update_work_date === "string" ? body.update_work_date.trim() : "";
+    const slotDuration = typeof body.slot_duration === "number" ? body.slot_duration : null;
     const price = typeof body.price === "number" ? body.price : Number.NaN;
-    const maxPatients = typeof body.max_patients === "number" ? body.max_patients : Number.NaN;
+    const hasMaxPatients = typeof body.max_patients === "number";
+    const maxPatients = hasMaxPatients ? (body.max_patients as number) : null;
     const room = typeof body.room === "string" ? body.room.trim() : "";
     const requestedStatus =
       typeof body.status === "string" && ["available", "full", "closed"].includes(body.status)
@@ -96,44 +99,44 @@ export async function PATCH(req: NextRequest) {
       price < 0
     ) {
       return NextResponse.json(
-        { success: false, message: "Du lieu cap nhat khong hop le (thieu dich vu hoac ngay)" },
+        { success: false, message: "Dữ liệu cập nhật không hợp lệ (thiếu dịch vụ hoặc ngày)" },
         { status: 400 }
       );
     }
 
-    if (!Number.isInteger(maxPatients) || maxPatients <= 0) {
-      return NextResponse.json(
-        { success: false, message: "So benh nhan toi da phai la so nguyen duong" },
-        { status: 400 }
-      );
-    }
     if ((startTimeRaw && !endTimeRaw) || (!startTimeRaw && endTimeRaw)) {
       return NextResponse.json(
-        { success: false, message: "Can chon day du gio bat dau va gio ket thuc" },
+        { success: false, message: "Cần chọn đầy đủ giờ bắt đầu và giờ kết thúc" },
         { status: 400 }
       );
     }
     if ((startTimeRaw && !startTime) || (endTimeRaw && !endTime)) {
       return NextResponse.json(
-        { success: false, message: "Gio ap dung khong hop le" },
+        { success: false, message: "Giờ áp dụng không hợp lệ" },
         { status: 400 }
       );
     }
     if (startTime && endTime && startTime >= endTime) {
       return NextResponse.json(
-        { success: false, message: "Khoang gio ap dung khong hop le" },
+        { success: false, message: "Khoảng giờ áp dụng không hợp lệ" },
         { status: 400 }
       );
     }
     if (updateServiceId !== null && (!Number.isInteger(updateServiceId) || updateServiceId <= 0)) {
       return NextResponse.json(
-        { success: false, message: "Dich vu moi khong hop le" },
+        { success: false, message: "Dịch vụ mới không hợp lệ" },
         { status: 400 }
       );
     }
     if (updateWorkDate && !/^\d{4}-\d{2}-\d{2}$/.test(updateWorkDate)) {
       return NextResponse.json(
-        { success: false, message: "Ngay moi khong hop le" },
+        { success: false, message: "Ngày mới không hợp lệ" },
+        { status: 400 }
+      );
+    }
+    if (slotDuration !== null && (!Number.isInteger(slotDuration) || slotDuration <= 0)) {
+      return NextResponse.json(
+        { success: false, message: "Độ dài slot không hợp lệ" },
         { status: 400 }
       );
     }
@@ -160,7 +163,7 @@ export async function PATCH(req: NextRequest) {
     if (doctorServiceRows.length === 0) {
       await connection.rollback();
       return NextResponse.json(
-        { success: false, message: "Service khong thuoc doctor nay" },
+        { success: false, message: "Dịch vụ không thuộc bác sĩ này" },
         { status: 400 }
       );
     }
@@ -184,7 +187,7 @@ export async function PATCH(req: NextRequest) {
       if (targetServiceRows.length === 0) {
         await connection.rollback();
         return NextResponse.json(
-          { success: false, message: "Dich vu moi khong thuoc doctor nay" },
+          { success: false, message: "Dịch vụ mới không thuộc bác sĩ này" },
           { status: 400 }
         );
       }
@@ -200,56 +203,47 @@ export async function PATCH(req: NextRequest) {
     );
 
     const maxBooked = Number(maxBookedRows[0]?.max_booked ?? 0);
-    if (maxPatients < maxBooked) {
-      await connection.rollback();
+    if (hasMaxPatients && (!Number.isInteger(maxPatients) || (maxPatients ?? 0) <= 0)) {
       return NextResponse.json(
-        { success: false, message: "So benh nhan toi da khong duoc nho hon slot da dat" },
+        { success: false, message: "Số bệnh nhân tối đa phải là số nguyên dương" },
         { status: 400 }
       );
     }
 
-    if (requestedStatus) {
-      await connection.execute(
-        `UPDATE doctor_schedule_slots
-         SET service_id = ?, work_date = ?, price = ?, max_patients = ?, room = ?, status = ?
-         WHERE doctor_id = ? AND service_id = ? AND work_date = ?${timeFilterSql}`,
-        [
-          targetServiceId,
-          targetWorkDate,
-          price,
-          maxPatients,
-          room || null,
-          requestedStatus,
-          doctorId,
-          serviceId,
-          workDate,
-          ...timeFilterParams,
-        ]
-      );
-    } else {
-      await connection.execute(
-        `UPDATE doctor_schedule_slots
-         SET service_id = ?, work_date = ?, price = ?, max_patients = ?, room = ?,
-             status = CASE
-               WHEN status = 'closed' THEN 'closed'
-               WHEN booked_count >= ? THEN 'full'
-               ELSE 'available'
-             END
-         WHERE doctor_id = ? AND service_id = ? AND work_date = ?${timeFilterSql}`,
-        [
-          targetServiceId,
-          targetWorkDate,
-          price,
-          maxPatients,
-          room || null,
-          maxPatients,
-          doctorId,
-          serviceId,
-          workDate,
-          ...timeFilterParams,
-        ]
+    if (hasMaxPatients && maxPatients! < maxBooked) {
+      await connection.rollback();
+      return NextResponse.json(
+        { success: false, message: "Số bệnh nhân tối đa không được nhỏ hơn slot đã đặt" },
+        { status: 400 }
       );
     }
+
+    const setClauses = ["service_id = ?", "work_date = ?", "price = ?"];
+    const params: unknown[] = [targetServiceId, targetWorkDate, price];
+
+    if (hasMaxPatients) {
+      setClauses.push("max_patients = ?");
+      params.push(maxPatients);
+    }
+
+    setClauses.push("room = ?");
+    params.push(room || null);
+
+    if (requestedStatus) {
+      setClauses.push("status = ?");
+      params.push(requestedStatus);
+    } else {
+      setClauses.push(
+        "status = CASE WHEN status = 'closed' THEN 'closed' WHEN booked_count >= max_patients THEN 'full' ELSE 'available' END"
+      );
+    }
+
+    await connection.execute(
+      `UPDATE doctor_schedule_slots
+       SET ${setClauses.join(", ")}
+       WHERE doctor_id = ? AND service_id = ? AND work_date = ?${timeFilterSql}`,
+      [...params, doctorId, serviceId, workDate, ...timeFilterParams]
+    );
 
     const [affectedRowsResult] = await connection.execute<RowDataPacket[]>(
       `SELECT COUNT(*) AS total
@@ -262,7 +256,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Cap nhat hang loat theo dich vu thanh cong",
+      message: "Cập nhật hàng loạt theo dịch vụ thành công",
       data: {
         service_id: serviceId,
         work_date: workDate,
@@ -277,7 +271,7 @@ export async function PATCH(req: NextRequest) {
     await connection.rollback();
     if ((error as { code?: string }).code === "ER_DUP_ENTRY") {
       return NextResponse.json(
-        { success: false, message: "Trung gio da ton tai o ngay moi" },
+        { success: false, message: "Trùng giờ đã tồn tại ở ngày mới" },
         { status: 409 }
       );
     }
@@ -288,7 +282,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
     return NextResponse.json(
-      { success: false, message: "Loi server" },
+      { success: false, message: "Lỗi server" },
       { status: 500 }
     );
   } finally {

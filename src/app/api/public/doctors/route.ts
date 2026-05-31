@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { RowDataPacket } from "mysql2";
+import { getDoctorSpecialtiesReady } from "@/lib/doctorSpecialtySchema";
 
 // FILE PUBLIC READ:
 // - Chi doc dữ liệu bac si (không can token).
@@ -18,6 +19,8 @@ interface DoctorListRow extends RowDataPacket {
   avatar: string | null;
   specialty_id: number | null;
   specialty_name: string | null;
+  specialty_ids_csv: string | null;
+  specialty_names_csv: string | null;
   experience: number | null;
   description: string | null;
   total_services: number;
@@ -28,18 +31,44 @@ interface DoctorListRow extends RowDataPacket {
 // GET /api/public/doctors?specialty_id=1&service_id=2
 export async function GET(req: NextRequest) {
   try {
+    const doctorSpecialtiesReady = await getDoctorSpecialtiesReady();
     const specialtyIdParam = req.nextUrl.searchParams.get("specialty_id");
     const serviceIdParam = req.nextUrl.searchParams.get("service_id");
+    const specialtySelect = doctorSpecialtiesReady
+      ? `dsp.specialty_ids_csv, dsp.specialty_names_csv,`
+      : `NULL AS specialty_ids_csv, NULL AS specialty_names_csv,`;
+    const specialtyJoin = doctorSpecialtiesReady
+      ? `LEFT JOIN (
+                 SELECT doctor_id,
+                        GROUP_CONCAT(DISTINCT specialty_id ORDER BY specialty_id ASC) AS specialty_ids_csv,
+                        GROUP_CONCAT(DISTINCT specialty_name ORDER BY specialty_name ASC SEPARATOR '|||') AS specialty_names_csv
+                 FROM (
+                   SELECT dspec.doctor_id,
+                          dspec.specialty_id,
+                          sp.name AS specialty_name
+                   FROM doctor_specialties dspec
+                   LEFT JOIN specialties sp ON sp.id = dspec.specialty_id
+                 ) doctor_specialty_names
+                 GROUP BY doctor_id
+                 ) dsp ON dsp.doctor_id = d.id`
+      : "";
+    const groupByColumns = doctorSpecialtiesReady
+      ? `d.id, d.user_id, d.doctor_code, u.full_name, u.avatar,
+         d.specialty_id, sp.name, dsp.specialty_ids_csv, dsp.specialty_names_csv, d.experience, d.description`
+      : `d.id, d.user_id, d.doctor_code, u.full_name, u.avatar,
+         d.specialty_id, sp.name, d.experience, d.description`;
 
     // SQL goc lấy danh sach bac si dang active.
     let sql = `SELECT d.id AS doctor_id, d.user_id, d.doctor_code, u.full_name, u.avatar,
                       d.specialty_id, sp.name AS specialty_name, d.experience, d.description,
+                      ${specialtySelect}
                       COUNT(DISTINCT ds.service_id) AS total_services,
                       AVG(dr.rating) AS rating_avg,
                       COUNT(DISTINCT dr.id) AS rating_count
                FROM doctors d
                JOIN users u ON u.id = d.user_id
                LEFT JOIN specialties sp ON sp.id = d.specialty_id
+               ${specialtyJoin}
                LEFT JOIN doctor_services ds ON ds.doctor_id = d.id
                LEFT JOIN doctor_reviews dr ON dr.doctor_id = d.id
                WHERE u.role = 'doctor' AND u.status = 'active'`;
@@ -54,8 +83,14 @@ export async function GET(req: NextRequest) {
           { status: 400 }
         );
       }
-      sql += " AND d.specialty_id = ?";
-      params.push(specialtyId);
+      if (doctorSpecialtiesReady) {
+        sql += " AND (d.specialty_id = ? OR EXISTS (SELECT 1 FROM doctor_specialties dspec WHERE dspec.doctor_id = d.id AND dspec.specialty_id = ?))";
+        params.push(specialtyId);
+        params.push(specialtyId);
+      } else {
+        sql += " AND d.specialty_id = ?";
+        params.push(specialtyId);
+      }
     }
 
     // Filter 2: service
@@ -71,8 +106,7 @@ export async function GET(req: NextRequest) {
       params.push(serviceId);
     }
 
-    sql += ` GROUP BY d.id, d.user_id, d.doctor_code, u.full_name, u.avatar,
-                    d.specialty_id, sp.name, d.experience, d.description
+    sql += ` GROUP BY ${groupByColumns}
              ORDER BY u.full_name ASC`;
 
     const [rows] = await db.execute<DoctorListRow[]>(sql, params);

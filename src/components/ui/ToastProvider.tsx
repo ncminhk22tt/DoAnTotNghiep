@@ -99,16 +99,20 @@ const containerStyle: CSSProperties = {
   placeItems: "center",
   padding: 16,
   zIndex: 9999,
+  isolation: "isolate",
   pointerEvents: "none",
 };
 
 const overlayStyle: CSSProperties = {
-  position: "fixed",
+  position: "absolute",
   inset: 0,
   background: "rgba(15,23,42,0.35)",
+  zIndex: 0,
 };
 
 const stackStyle: CSSProperties = {
+  position: "relative",
+  zIndex: 1,
   display: "grid",
   gap: 10,
   width: "min(420px, 92vw)",

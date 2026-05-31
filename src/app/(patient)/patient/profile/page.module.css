@@ -1,0 +1,255 @@
+.profilePage {
+  display: flex;
+  justify-content: center;
+  padding: 32px 16px;
+  background: linear-gradient(to bottom right, #f1f5f9, #e0f2fe);
+  min-height: 100vh;
+}
+
+.profileContainer {
+  width: 100%;
+  max-width: 950px;
+  display: grid;
+  gap: 24px;
+}
+
+.profileHeader {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  padding: 28px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.avatarBox {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4px solid #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  background: #dbeafe;
+  flex-shrink: 0;
+}
+
+.avatarBox img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarPlaceholder {
+  width: 100%;
+  height: 100%;
+  font-size: 36px;
+  font-weight: 700;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profileInfo {
+  flex: 1;
+}
+
+.profileName {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.profileRole {
+  margin-top: 6px;
+  font-size: 15px;
+  color: #64748b;
+}
+
+.profileMeta {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.metaItem {
+  padding: 8px 14px;
+  background: #eff6ff;
+  border-radius: 999px;
+  font-size: 14px;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.tabGroup {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tabButton {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid #93c5fd;
+  background: #fff;
+  color: #2563eb;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1.2;
+  width: fit-content;
+  transition: all 0.25s ease;
+  box-shadow: none;
+}
+
+.tabButton:hover {
+  transform: translateY(-2px);
+}
+
+.activeTab {
+  background: #60a5fa;
+  border-color: #60a5fa;
+  color: #fff;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.cardTitle {
+  margin: 0 0 24px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.input,
+.select {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #dbe2ea;
+  background: #fff;
+  font-size: 15px;
+  color: #0f172a;
+  transition: all 0.25s ease;
+}
+
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+.input::placeholder {
+  color: #94a3b8;
+}
+
+.submitButton {
+  margin-top: 8px;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.submitButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.25);
+}
+
+.submitButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.secondaryButton:hover {
+  background: #f8fafc;
+}
+
+.loadingText,
+.emptyText {
+  text-align: center;
+  font-size: 16px;
+  color: #64748b;
+  padding: 40px 0;
+}
+
+@media (max-width: 768px) {
+  .profileHeader {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .profileMeta {
+    justify-content: center;
+  }
+
+  .card {
+    padding: 20px;
+  }
+
+  .profileName {
+    font-size: 24px;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tabGroup {
+    width: 100%;
+  }
+
+  .tabButton {
+    text-align: center;
+  }
+}

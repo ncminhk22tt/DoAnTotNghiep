@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { ServiceBody } from "@/types/service";
 import { getServiceSoftDeleteReady } from "@/lib/serviceSchema";
+import { hasActiveScheduleForService } from "@/lib/adminScheduleGuard";
 
 interface IdRow extends RowDataPacket {
   id: number;
@@ -51,6 +52,17 @@ export async function PATCH(
       return NextResponse.json(
         { success: false, message: "Dữ liệu không hợp lệ" },
         { status: 400 }
+      );
+    }
+
+    if (await hasActiveScheduleForService(serviceId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Không thể sửa dịch vụ vì bác sĩ đang có lịch khám hiện tại hoặc tương lai liên quan.",
+        },
+        { status: 409 }
       );
     }
 
@@ -114,6 +126,17 @@ export async function DELETE(
       return NextResponse.json(
         { success: false, message: "ID không hợp lệ" },
         { status: 400 }
+      );
+    }
+
+    if (await hasActiveScheduleForService(serviceId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Không thể xóa dịch vụ vì bác sĩ đang có lịch khám hiện tại hoặc tương lai liên quan.",
+        },
+        { status: 409 }
       );
     }
 

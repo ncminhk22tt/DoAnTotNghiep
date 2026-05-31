@@ -2,24 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const mysql = require("mysql2/promise");
 const bcrypt = require("bcrypt");
-
-function loadEnvLocal() {
-  const envPath = path.join(process.cwd(), ".env.local");
-  if (!fs.existsSync(envPath)) return;
-
-  const text = fs.readFileSync(envPath, "utf8");
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-    const idx = line.indexOf("=");
-    if (idx <= 0) continue;
-    const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim();
-    if (!(key in process.env)) {
-      process.env[key] = value;
-    }
-  }
-}
+const { getLocalDbConfig } = require("./db-local.cjs");
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -120,19 +103,14 @@ async function upsertDoctorProfile(conn, item) {
 }
 
 async function main() {
-  loadEnvLocal();
-
-  const host =
-    process.env.DB_HOST === "localhost"
-      ? "127.0.0.1"
-      : process.env.DB_HOST || "127.0.0.1";
+  const db = getLocalDbConfig();
 
   const conn = await mysql.createConnection({
-    host,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME || "medical_booking",
-    port: Number(process.env.DB_PORT) || 3306,
+    host: db.host,
+    user: db.user,
+    password: db.password,
+    database: db.database,
+    port: db.port,
   });
 
   try {
@@ -264,4 +242,3 @@ main().catch((error) => {
   console.error("Seed demo data that bai:", error?.message || error);
   process.exit(1);
 });
-

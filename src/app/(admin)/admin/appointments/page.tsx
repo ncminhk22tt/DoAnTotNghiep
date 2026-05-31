@@ -70,35 +70,47 @@ function formatEventDateTime(raw: string | null): string {
 
 function formatMoneyVnd(amount: number | null): string {
   if (amount === null || Number.isNaN(Number(amount))) return "-";
-  return new Intl.NumberFormat("vi-VN").format(Number(amount)) + " VND";
+  return `${new Intl.NumberFormat("vi-VN").format(Number(amount))} VND`;
 }
 
 function mapStatusLabel(tab: StatusTab) {
-  if (tab === "not_examined") return "Chua kham";
-  if (tab === "completed") return "Da kham";
-  if (tab === "cancelled") return "Da huy";
-  return "Vang mat";
+  if (tab === "not_examined") return "Chưa khám";
+  if (tab === "completed") return "Đã khám";
+  if (tab === "cancelled") return "Đã hủy";
+  return "Vắng mặt";
+}
+
+function normalizeStatus(status: string): string {
+  return status.toLowerCase().replace(/-/g, "_").replace(/\s+/g, "_").trim();
 }
 
 function normalizeStatusText(status: string) {
   const normalized = normalizeStatus(status);
-  if (normalized === "pending" || normalized === "confirmed") return "Chua kham";
-  if (normalized === "completed") return "Da kham";
-  if (normalized === "cancelled") return "Da huy";
-  return "Vang mat";
+  if (normalized === "pending" || normalized === "confirmed") return "Chưa khám";
+  if (normalized === "completed") return "Đã khám";
+  if (normalized === "cancelled") return "Đã hủy";
+  return "Vắng mặt";
+}
+
+function getStatusBadgeClass(status: string) {
+  const normalized = normalizeStatus(status);
+  if (normalized === "pending" || normalized === "confirmed") return styles.badgePending;
+  if (normalized === "completed") return styles.badgeCompleted;
+  if (normalized === "cancelled") return styles.badgeCancelled;
+  return styles.badgeNoShow;
 }
 
 function parseBookingNote(note: string | null): ParsedBookingNote {
   if (!note) return { reason: null, gender: null, birthYear: null };
   const compact = note.replace(/\s+/g, " ").trim();
   const genderMatch = compact.match(
-    /(Gioi tinh|Giới tính)\s*:\s*([^]+?)(?=\s+(Nam sinh|Năm sinh)\s*:|\s+(Ly do kham|Lý do khám)\s*:|$)/i
+    /(Giới tính|Gioi tinh)\s*:\s*([^]+?)(?=\s+(Năm sinh|Nam sinh)\s*:|\s+(Lý do khám|Ly do kham)\s*:|$)/i
   );
-  const birthYearMatch = compact.match(/(Nam sinh|Năm sinh)\s*:\s*(\d{4})/i);
+  const birthYearMatch = compact.match(/(Năm sinh|Nam sinh)\s*:\s*(\d{4})/i);
   const reasonMatch = compact.match(
-    /(Ly do kham|Lý do khám)\s*:\s*([^]+?)(?=\s+(Ly do huy|Lý do hủy)\s*:|$)/i
+    /(Lý do khám|Ly do kham)\s*:\s*([^]+?)(?=\s+(Lý do hủy|Ly do huy)\s*:|$)/i
   );
-  const fallbackReasonMatch = compact.match(/(Ly do|Lý do)\s*:\s*([^]+?)$/i);
+  const fallbackReasonMatch = compact.match(/(Lý do|Ly do)\s*:\s*([^]+?)$/i);
   return {
     reason: reasonMatch?.[2]?.trim() || fallbackReasonMatch?.[2]?.trim() || note.trim(),
     gender: genderMatch?.[2]?.trim() || null,
@@ -106,18 +118,18 @@ function parseBookingNote(note: string | null): ParsedBookingNote {
   };
 }
 
+function formatGenderLabel(value: string | null | undefined): string {
+  if (!value) return "-";
+  const normalized = value.toLowerCase().trim();
+  if (normalized === "male" || normalized === "nam" || normalized === "m") return "Nam";
+  if (normalized === "female" || normalized === "nu" || normalized === "nữ" || normalized === "f") return "Nữ";
+  return value;
+}
+
 function getExamReason(item: AdminAppointmentItem): string {
   const fromNote = parseBookingNote(item.note).reason;
   if (fromNote) return fromNote;
   return "-";
-}
-
-function normalizeStatus(status: string): string {
-  return status
-    .toLowerCase()
-    .replace(/-/g, "_")
-    .replace(/\s+/g, "_")
-    .trim();
 }
 
 export default function AdminAppointmentsPage() {
@@ -148,7 +160,7 @@ export default function AdminAppointmentsPage() {
       );
       setItems(res.data || []);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Khong the tai lich hen", "error");
+      showToast(err instanceof Error ? err.message : "Không thể tải lịch hẹn", "error");
     } finally {
       setLoading(false);
     }
@@ -190,7 +202,7 @@ export default function AdminAppointmentsPage() {
     for (const item of items) {
       if (item.doctor_id) {
         const code = item.doctor_code ? ` (${item.doctor_code})` : "";
-        map.set(item.doctor_id, `${item.doctor_name || "Bac si"}${code}`);
+        map.set(item.doctor_id, `${item.doctor_name || "Bác sĩ"}${code}`);
       }
     }
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
@@ -200,7 +212,7 @@ export default function AdminAppointmentsPage() {
     const map = new Map<number, string>();
     for (const item of items) {
       if (item.user_id) {
-        map.set(item.user_id, item.patient_name || `Benh nhan #${item.user_id}`);
+        map.set(item.user_id, item.patient_name || `Bệnh nhân #${item.user_id}`);
       }
     }
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
@@ -216,32 +228,32 @@ export default function AdminAppointmentsPage() {
 
   return (
     <div className={styles.page}>
-      <h2 className={styles.title}>Quan ly lich hen</h2>
+      <h2 className={styles.title}>Quản lý lịch hẹn</h2>
       <div className={styles.mainGrid}>
         <aside className={styles.sidebar}>
           <div className={styles.sidebarHead}>
-            <h3 className={styles.sidebarTitle}>Bo loc</h3>
+            <h3 className={styles.sidebarTitle}>Bộ lọc</h3>
             <button type="button" className={styles.secondaryBtn} onClick={resetFilters}>
-              Reset bo loc
+              Xóa lọc
             </button>
           </div>
 
           <div className={styles.filterGroup}>
-            <label className={styles.label}>Trang thai</label>
+            <label className={styles.label}>Trạng thái</label>
             <select
               className={styles.control}
               value={statusTab}
               onChange={(e) => setStatusTab(e.target.value as StatusTab)}
             >
-              <option value="not_examined">Chua kham</option>
-              <option value="completed">Da kham</option>
-              <option value="cancelled">Da huy</option>
-              <option value="no_show">Vang mat</option>
+              <option value="not_examined">Chưa khám</option>
+              <option value="completed">Đã khám</option>
+              <option value="cancelled">Đã hủy</option>
+              <option value="no_show">Vắng mặt</option>
             </select>
           </div>
 
           <div className={styles.filterGroup}>
-            <label className={styles.label}>Ngay kham</label>
+            <label className={styles.label}>Ngày khám</label>
             <input
               className={styles.control}
               type="date"
@@ -251,13 +263,13 @@ export default function AdminAppointmentsPage() {
           </div>
 
           <div className={styles.filterGroup}>
-            <label className={styles.label}>Dich vu</label>
+            <label className={styles.label}>Dịch vụ</label>
             <select
               className={styles.control}
               value={serviceFilter}
               onChange={(e) => setServiceFilter(e.target.value)}
             >
-              <option value="">Tat ca dich vu</option>
+              <option value="">Tất cả dịch vụ</option>
               {serviceOptions.map(([id, service]) => (
                 <option key={id} value={id}>
                   {service}
@@ -267,13 +279,13 @@ export default function AdminAppointmentsPage() {
           </div>
 
           <div className={styles.filterGroup}>
-            <label className={styles.label}>Bac si</label>
+            <label className={styles.label}>Bác sĩ</label>
             <select
               className={styles.control}
               value={doctorFilter}
               onChange={(e) => setDoctorFilter(e.target.value)}
             >
-              <option value="">Tat ca bac si</option>
+              <option value="">Tất cả bác sĩ</option>
               {doctorOptions.map(([id, label]) => (
                 <option key={id} value={id}>
                   {label}
@@ -283,13 +295,13 @@ export default function AdminAppointmentsPage() {
           </div>
 
           <div className={styles.filterGroup}>
-            <label className={styles.label}>Benh nhan</label>
+            <label className={styles.label}>Bệnh nhân</label>
             <select
               className={styles.control}
               value={patientFilter}
               onChange={(e) => setPatientFilter(e.target.value)}
             >
-              <option value="">Tat ca benh nhan</option>
+              <option value="">Tất cả bệnh nhân</option>
               {patientOptions.map(([id, name]) => (
                 <option key={id} value={id}>
                   {name}
@@ -297,21 +309,22 @@ export default function AdminAppointmentsPage() {
               ))}
             </select>
           </div>
-
         </aside>
 
         <section className={styles.content}>
-          <h3 className={styles.sidebarTitle}>Danh sach: {mapStatusLabel(statusTab)}</h3>
+          <h3 className={styles.sidebarTitle}>Danh sách: {mapStatusLabel(statusTab)}</h3>
           {loading ? (
-            <p>Dang tai lich hen...</p>
+            <p>Đang tải lịch hẹn...</p>
           ) : statusItems.length === 0 ? (
-            <p className={styles.empty}>Khong co lich hen phu hop.</p>
+            <p className={styles.empty}>Không có lịch hẹn phù hợp.</p>
           ) : (
             <div className={styles.list}>
               {statusItems.map((item) => (
                 <article key={item.id} className={styles.card}>
                   <div className={styles.cardTop}>
-                    <span className={styles.badge}>{normalizeStatusText(item.status)}</span>
+                    <span className={`${styles.badge} ${getStatusBadgeClass(String(item.status))}`}>
+                      {normalizeStatusText(item.status)}
+                    </span>
                   </div>
 
                   <div className={styles.grid}>
@@ -319,21 +332,21 @@ export default function AdminAppointmentsPage() {
                       {(() => {
                         const normalized = normalizeStatus(String(item.status));
                         const parsed = parseBookingNote(item.note);
-                        const displayGender = item.patient_gender || parsed.gender || "-";
+                        const displayGender = formatGenderLabel(item.patient_gender || parsed.gender);
                         const displayBirthYear = item.patient_birth_year || parsed.birthYear || "-";
                         const displayReason = getExamReason(item);
                         return (
                           <>
-                      <p><strong>Benh nhan:</strong> {item.patient_name || "-"}</p>
-                      <p><strong>So dien thoai:</strong> {item.patient_phone || "-"}</p>
-                            <p><strong>Gioi tinh:</strong> {displayGender}</p>
-                            <p><strong>Nam sinh:</strong> {displayBirthYear}</p>
-                            <p><strong>Ly do kham:</strong> {displayReason}</p>
+                            <p><strong>Bệnh nhân:</strong> {item.patient_name || "-"}</p>
+                            <p><strong>Số điện thoại:</strong> {item.patient_phone || "-"}</p>
+                            <p><strong>Giới tính:</strong> {displayGender}</p>
+                            <p><strong>Năm sinh:</strong> {displayBirthYear}</p>
+                            <p><strong>Lý do khám:</strong> {displayReason}</p>
                             {normalized === "completed" && item.payment_status === "paid" ? (
                               <>
-                                <p><strong>Thoi gian thanh toan:</strong> {formatEventDateTime(item.paid_at)}</p>
+                                <p><strong>Thời gian thanh toán:</strong> {formatEventDateTime(item.paid_at)}</p>
                                 <p>
-                                  <strong>So tien thanh toan:</strong>{" "}
+                                  <strong>Số tiền thanh toán:</strong>{" "}
                                   {formatMoneyVnd(item.payment_amount ?? item.price ?? null)}
                                 </p>
                               </>
@@ -343,40 +356,40 @@ export default function AdminAppointmentsPage() {
                       })()}
                       {normalizeStatus(String(item.status)) === "completed" ? (
                         <p>
-                          <strong>Thanh toan:</strong>{" "}
-                          {item.payment_status === "paid" ? "Da thanh toan" : "Chua thanh toan"}
+                          <strong>Thanh toán:</strong>{" "}
+                          {item.payment_status === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}
                         </p>
                       ) : null}
                       {normalizeStatus(String(item.status)) === "cancelled" ? (
                         <>
-                          <p><strong>Trang thai huy:</strong> Da huy</p>
-                          <p><strong>Thoi gian huy:</strong> {formatEventDateTime(item.cancelled_at)}</p>
+                          <p><strong>Trạng thái hủy:</strong> Đã hủy</p>
+                          <p><strong>Thời gian hủy:</strong> {formatEventDateTime(item.cancelled_at)}</p>
                           <p>
-                            <strong>Nguoi huy:</strong>{" "}
+                            <strong>Người hủy:</strong>{" "}
                             {item.cancelled_by_name
                               ? `${item.cancelled_by_name}${item.cancelled_by_role ? ` (${item.cancelled_by_role})` : ""}`
-                              : "Khong ro"}
+                              : "Không rõ"}
                           </p>
-                          <p><strong>Ly do huy:</strong> {item.cancellation_reason || "-"}</p>
+                          <p><strong>Lý do hủy:</strong> {item.cancellation_reason || "-"}</p>
                         </>
                       ) : null}
                       {normalizeStatus(String(item.status)) === "no_show" ? (
                         <>
-                          <p><strong>Trang thai:</strong> Vang mat</p>
-                          <p><strong>Thoi gian vang mat:</strong> {formatEventDateTime(item.no_show_at)}</p>
+                          <p><strong>Trạng thái:</strong> Vắng mặt</p>
+                          <p><strong>Thời gian vắng mặt:</strong> {formatEventDateTime(item.no_show_at)}</p>
                         </>
                       ) : null}
                     </div>
 
                     <div className={styles.col}>
                       <p>
-                        <strong>Bac si:</strong>{" "}
+                        <strong>Bác sĩ:</strong>{" "}
                         {item.doctor_name || "-"}
                         {item.doctor_code ? ` (${item.doctor_code})` : ""}
                       </p>
-                      <p><strong>Dich vu:</strong> {item.service_name || "-"}</p>
-                      <p><strong>Phong kham:</strong> {item.room || "-"}</p>
-                      <p><strong>Thoi gian kham:</strong> {formatDateTime(item)}</p>
+                      <p><strong>Dịch vụ:</strong> {item.service_name || "-"}</p>
+                      <p><strong>Phòng khám:</strong> {item.room || "-"}</p>
+                      <p><strong>Thời gian khám:</strong> {formatDateTime(item)}</p>
                     </div>
                   </div>
                 </article>

@@ -44,6 +44,28 @@
   width: 100%;
 }
 
+.clearFilterButton {
+  display: block;
+  border: 1px solid #93c5fd;
+  border-radius: 10px;
+  background: #fff;
+  color: #0b5fff;
+  padding: 10px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.clearFilterButton:hover:not(:disabled) {
+  background: #e0efff;
+}
+
+.clearFilterButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .listWrap {
   display: grid;
   gap: 8px;
@@ -188,6 +210,35 @@
   border-radius: 8px;
   background: #fff;
   padding: 8px;
+}
+
+.tableWrap {
+  overflow: auto;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+.tableHead {
+  text-align: left;
+  padding: 8px 10px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-bottom: 1px solid #dbeafe;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tableCell {
+  padding: 8px 10px;
+  border-bottom: 1px solid #eff6ff;
+  vertical-align: top;
 }
 
 .empty {

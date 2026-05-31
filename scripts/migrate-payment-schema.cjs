@@ -1,60 +1,21 @@
-const fs = require("fs");
-const path = require("path");
 const mysql = require("mysql2/promise");
-
-function loadEnvLocal() {
-  const envPath = path.join(process.cwd(), ".env.local");
-  if (!fs.existsSync(envPath)) {
-    console.warn(".env.local not found. Using environment variables.");
-    return;
-  }
-
-  const text = fs.readFileSync(envPath, "utf8");
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-    const idx = line.indexOf("=");
-    if (idx <= 0) continue;
-    const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim();
-    if (!(key in process.env)) {
-      process.env[key] = value;
-    }
-  }
-}
+const { getLocalDbConfig } = require("./db-local.cjs");
 
 async function columnExists(conn, table, column) {
-  // Some MySQL versions don't accept parameter placeholders in SHOW COLUMNS LIKE.
-  // Use connection.escape to safely interpolate the column name.
   const sql = `SHOW COLUMNS FROM \`${table}\` LIKE ${conn.escape(column)}`;
   const [rows] = await conn.query(sql);
   return rows.length > 0;
 }
 
 async function main() {
-  loadEnvLocal();
-
-  const host =
-    process.env.DB_HOST === "localhost"
-      ? "127.0.0.1"
-      : process.env.DB_HOST || "127.0.0.1";
-  const port = Number(process.env.DB_PORT) || 3306;
-  const user = process.env.DB_USER;
-  const password = process.env.DB_PASSWORD;
-  const database = process.env.DB_NAME || "medical_booking";
-
-  if (!user || password === undefined) {
-    throw new Error(
-      "Missing DB_USER or DB_PASSWORD. Please create .env.local or set these env vars."
-    );
-  }
+  const db = getLocalDbConfig();
 
   const conn = await mysql.createConnection({
-    host,
-    port,
-    user,
-    password,
-    database,
+    host: db.host,
+    port: db.port,
+    user: db.user,
+    password: db.password,
+    database: db.database,
   });
 
   try {
@@ -77,7 +38,7 @@ async function main() {
        WHERE TABLE_SCHEMA = ?
          AND TABLE_NAME = 'payments'
        LIMIT 1`,
-      [database]
+      [db.database]
     );
 
     if (paymentTableRows.length === 0) {

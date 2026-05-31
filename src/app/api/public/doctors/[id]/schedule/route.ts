@@ -19,7 +19,7 @@ export async function GET(
       );
     }
 
-    let sql = `SELECT id, service_id, start_time, end_time, price, room, status
+    let sql = `SELECT id, service_id, DATE_FORMAT(work_date, '%Y-%m-%d') AS work_date, start_time, end_time, price, room, status
                FROM doctor_schedule_slots
                WHERE doctor_id = ?
                AND work_date = ?`;

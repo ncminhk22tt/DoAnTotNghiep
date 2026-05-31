@@ -16,8 +16,10 @@ interface MedicalRecordListRow extends RowDataPacket {
   work_date: string | null;
   start_time: string | null;
   end_time: string | null;
+  room: string | null;
   price: number | null;
   doctor_id: number | null;
+  doctor_code: string | null;
   doctor_name: string | null;
   doctor_phone: string | null;
   specialty_id: number | null;
@@ -65,8 +67,8 @@ export async function GET(req: NextRequest) {
               mr.created_at AS medical_record_created_at,
               COALESCE(mrr.revision_count, 0) AS revision_count,
               a.status AS appointment_status, a.note AS appointment_note, a.created_at AS appointment_created_at,
-              s.work_date, s.start_time, s.end_time, s.price,
-              d.id AS doctor_id, u.full_name AS doctor_name, u.phone AS doctor_phone,
+              s.work_date, s.start_time, s.end_time, s.room, s.price,
+              d.id AS doctor_id, d.doctor_code AS doctor_code, u.full_name AS doctor_name, u.phone AS doctor_phone,
               sp.id AS specialty_id, sp.name AS specialty_name,
               s.service_id, sv.name AS service_name,
               dr.id AS review_id, dr.rating AS review_rating, dr.comment AS review_comment
@@ -182,10 +184,12 @@ export async function GET(req: NextRequest) {
         work_date: row.work_date,
         start_time: row.start_time,
         end_time: row.end_time,
+        room: row.room,
         price: row.price,
       },
       doctor: {
         id: row.doctor_id,
+        code: row.doctor_code,
         full_name: row.doctor_name,
         phone: row.doctor_phone,
       },

@@ -103,7 +103,10 @@ export async function GET(req: NextRequest) {
     const date = req.nextUrl.searchParams.get("date");
 
     let sql = `SELECT a.id, a.user_id, a.slot_id, a.doctor_id, a.status, a.note, ${hasAdminNoteColumn ? "a.admin_note" : "NULL AS admin_note"}, a.created_at,
-                      s.work_date, s.start_time, s.end_time, s.room, s.price, s.service_id,
+                      DATE_FORMAT(s.work_date, '%Y-%m-%d') AS work_date,
+                      TIME_FORMAT(s.start_time, '%H:%i:%s') AS start_time,
+                      TIME_FORMAT(s.end_time, '%H:%i:%s') AS end_time,
+                      s.room, s.price, s.service_id,
                       sv.name AS service_name, u.full_name AS doctor_name
                FROM appointments a
                LEFT JOIN doctor_schedule_slots s ON s.id = a.slot_id
@@ -524,7 +527,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: `Chi duoc huy lich truoc it nhat ${cancelDeadlineMinutes} phut so voi gio kham`,
+          message: `Chỉ được hủy lịch trước ít nhất ${cancelDeadlineMinutes} phút so với giờ khám`,
         },
         { status: 400 }
       );

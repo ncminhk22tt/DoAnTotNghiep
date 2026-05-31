@@ -30,6 +30,8 @@
   padding: 16px;
   height: fit-content;
   align-self: start;
+  position: sticky;
+  top: 12px;
 }
 
 .sidebarTitle {
@@ -45,7 +47,8 @@
   gap: 8px;
 }
 
-.content {
+.content,
+.results {
   display: grid;
   gap: 12px;
   grid-template-rows: auto 1fr;
@@ -123,6 +126,42 @@
   padding: 4px 10px;
   font-size: 12px;
   color: #334155;
+}
+
+.badgePending {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.badgeCompleted {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.badgeNoShow {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.badgeCancelled {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+.badgeUnpaid {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.badgePaid {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
 }
 
 .grid {
@@ -219,6 +258,7 @@
 
   .sidebar {
     height: auto;
+    position: static;
   }
 
   .grid {

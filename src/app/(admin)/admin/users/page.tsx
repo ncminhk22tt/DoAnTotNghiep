@@ -63,7 +63,7 @@ export default function AdminUsersPage() {
 
   return (
     <div className={styles.page}>
-      <h2 className={styles.title}>Quản lý người dùng (patient)</h2>
+      <h2 className={styles.title}>Quản lý người dùng</h2>
 
       <div className={styles.listContainer}>
         <table className={styles.table}>
@@ -113,3 +113,4 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+

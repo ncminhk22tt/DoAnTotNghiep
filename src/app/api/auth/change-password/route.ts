@@ -54,14 +54,14 @@ export async function POST(req: NextRequest) {
 
     if (!oldPassword || !newPassword) {
       return NextResponse.json(
-        { success: false, message: "Thieu du lieu" },
+        { success: false, message: "Vui lòng nhập dữ liệu" },
         { status: 400 }
       );
     }
 
     if (newPassword.length < 6) {
       return NextResponse.json(
-        { success: false, message: "Mat khau moi phai tu 6 ky tu" },
+        { success: false, message: "Mật khẩu mới phải từ 6 ký tự" },
         { status: 400 }
       );
     }
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     const ok = await bcrypt.compare(oldPassword, user.password);
     if (!ok) {
       return NextResponse.json(
-        { success: false, message: "Mat khau cu khong dung" },
+        { success: false, message: "Mật khẩu cũ không đúng" },
         { status: 400 }
       );
     }

@@ -1,20 +1,5 @@
-const fs = require("fs");
-const path = require("path");
 const mysql = require("mysql2/promise");
-
-function loadEnvLocal() {
-  const envPath = path.join(process.cwd(), ".env.local");
-  const text = fs.readFileSync(envPath, "utf8");
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-    const idx = line.indexOf("=");
-    if (idx <= 0) continue;
-    const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim();
-    if (!(key in process.env)) process.env[key] = value;
-  }
-}
+const { getLocalDbConfig } = require("./db-local.cjs");
 
 async function tableExists(conn, dbName, tableName) {
   const [rows] = await conn.execute(
@@ -51,24 +36,18 @@ async function addIndexIfMissing(conn, dbName, tableName, indexName, ddl) {
 }
 
 async function main() {
-  loadEnvLocal();
-
-  const dbName = process.env.DB_NAME || "medical_booking";
-  const host =
-    process.env.DB_HOST === "localhost"
-      ? "127.0.0.1"
-      : process.env.DB_HOST || "127.0.0.1";
+  const db = getLocalDbConfig();
 
   const conn = await mysql.createConnection({
-    host,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    port: Number(process.env.DB_PORT) || 3306,
-    database: dbName,
+    host: db.host,
+    user: db.user,
+    password: db.password,
+    port: db.port,
+    database: db.database,
   });
 
   try {
-    const hasSlotsTable = await tableExists(conn, dbName, "doctor_schedule_slots");
+    const hasSlotsTable = await tableExists(conn, db.database, "doctor_schedule_slots");
     if (!hasSlotsTable) {
       await conn.execute(
         `CREATE TABLE doctor_schedule_slots (
@@ -147,6 +126,7 @@ async function main() {
       )`
     );
     console.log("Ensured table medical_record_files");
+
     await conn.execute(
       `CREATE TABLE IF NOT EXISTS appointment_reminders (
         id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -174,93 +154,91 @@ async function main() {
 
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "appointments",
       "idx_appointments_user_status",
       "CREATE INDEX idx_appointments_user_status ON appointments (user_id, status)"
     );
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "appointments",
       "idx_appointments_slot_id",
       "CREATE INDEX idx_appointments_slot_id ON appointments (slot_id)"
     );
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "doctor_schedule_slots",
       "idx_slot_doctor_date",
       "CREATE INDEX idx_slot_doctor_date ON doctor_schedule_slots (doctor_id, work_date)"
     );
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "doctor_schedule_slots",
       "idx_slot_status",
       "CREATE INDEX idx_slot_status ON doctor_schedule_slots (status)"
     );
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "medical_records",
       "idx_medical_records_appointment_id",
       "CREATE INDEX idx_medical_records_appointment_id ON medical_records (appointment_id)"
     );
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "notifications",
       "idx_notifications_user_read_created",
       "CREATE INDEX idx_notifications_user_read_created ON notifications (user_id, is_read, created_at)"
     );
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "password_reset_tokens",
       "idx_password_reset_token_user_expires",
       "CREATE INDEX idx_password_reset_token_user_expires ON password_reset_tokens (user_id, expires_at)"
     );
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "auth_refresh_tokens",
       "idx_refresh_user_expires",
       "CREATE INDEX idx_refresh_user_expires ON auth_refresh_tokens (user_id, expires_at)"
     );
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "auth_refresh_tokens",
       "idx_refresh_jti",
       "CREATE INDEX idx_refresh_jti ON auth_refresh_tokens (jti)"
     );
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "audit_logs",
       "idx_audit_user_created",
       "CREATE INDEX idx_audit_user_created ON audit_logs (user_id, created_at)"
     );
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "audit_logs",
       "idx_audit_action_created",
       "CREATE INDEX idx_audit_action_created ON audit_logs (action, created_at)"
     );
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "medical_record_files",
       "idx_mrf_record_created",
       "CREATE INDEX idx_mrf_record_created ON medical_record_files (medical_record_id, created_at)"
     );
-
-
     await addIndexIfMissing(
       conn,
-      dbName,
+      db.database,
       "appointment_reminders",
       "idx_appointment_reminders_reminded_at",
       "CREATE INDEX idx_appointment_reminders_reminded_at ON appointment_reminders (reminded_at)"
@@ -275,5 +253,3 @@ main().catch((error) => {
   console.error("migrate-schema-hardening failed:", error);
   process.exit(1);
 });
-
-
