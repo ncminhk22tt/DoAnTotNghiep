@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
 import { clearAuthSession, setAuthSession } from "@/lib/authClient";
 import { LoginResponse } from "@/types/frontend-auth";
@@ -13,7 +12,6 @@ function isValidPhone(phone: string) {
 }
 
 export default function LoginPage() {
-  const router = useRouter();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -60,9 +58,13 @@ export default function LoginPage() {
           ? nextPathRaw
           : "";
 
-      if (res.user.role === "admin") router.replace("/admin");
-      else if (res.user.role === "doctor") router.replace("/doctor");
-      else router.replace(nextPath || "/");
+      if (res.user.role === "admin") {
+        window.location.replace("/admin");
+      } else if (res.user.role === "doctor") {
+        window.location.replace("/doctor");
+      } else {
+        window.location.replace(nextPath || "/");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
     } finally {
