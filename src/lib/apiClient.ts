@@ -10,7 +10,7 @@ type RequestOptions = {
   retry?: boolean;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "";
 
 async function tryRefreshToken(role: UserRole): Promise<string | null> {
   const refreshToken = getRefreshToken(role);
