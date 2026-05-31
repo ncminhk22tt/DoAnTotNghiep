@@ -10,13 +10,39 @@ type RequestOptions = {
   retry?: boolean;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "";
+function resolveApiBase() {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "";
+  if (typeof window === "undefined") {
+    return configured;
+  }
+
+  if (!configured) {
+    return window.location.origin;
+  }
+
+  try {
+    const url = new URL(configured);
+    const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    const isBrowserLocalhost =
+      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+
+    if (isLocalhost && !isBrowserLocalhost) {
+      return window.location.origin;
+    }
+  } catch {
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(configured)) {
+      return window.location.origin;
+    }
+  }
+
+  return configured;
+}
 
 async function tryRefreshToken(role: UserRole): Promise<string | null> {
   const refreshToken = getRefreshToken(role);
   if (!refreshToken) return null;
 
-  const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+  const response = await fetch(`${resolveApiBase()}/api/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token: refreshToken }),
@@ -56,7 +82,7 @@ async function tryRefreshToken(role: UserRole): Promise<string | null> {
 
 async function request<T>(url: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, token, headers = {}, retry = false } = options;
-  const response = await fetch(`${API_BASE}${url}`, {
+  const response = await fetch(`${resolveApiBase()}${url}`, {
     method,
     headers: {
       "Content-Type": "application/json",
