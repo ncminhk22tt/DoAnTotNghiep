@@ -166,8 +166,8 @@ export default function DoctorListingPage() {
               { label: "Bac si" },
             ]}
           />
-          <h1 className={styles.title}>Danh sach bac si danh cho ban</h1>
-          <p className={styles.sub}>Chon bac si phu hop va chuyen den trang dat lich.</p>
+          <h1 className={styles.title}>Danh sách bác sĩ danh cho ban</h1>
+          <p className={styles.sub}>Chon bác sĩ phù hợp va chuyển đến trang đặt lịch.</p>
           <div className={styles.filters}>
             <input
               className={styles.control}
@@ -180,7 +180,7 @@ export default function DoctorListingPage() {
               value={specialtyId}
               onChange={(e) => setSpecialtyId(Number(e.target.value))}
             >
-              <option value={0}>Tat ca chuyen khoa</option>
+              <option value={0}>Tất cả chuyên khoa</option>
               {specialties.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -192,7 +192,7 @@ export default function DoctorListingPage() {
               value={serviceId}
               onChange={(e) => setServiceId(Number(e.target.value))}
             >
-              <option value={0}>Tat ca dich vu</option>
+              <option value={0}>Tất cả dịch vụ</option>
               {filteredServices.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}

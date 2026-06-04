@@ -251,7 +251,7 @@ export default function HomePage() {
               />
               <div className={styles.badge}>
                 <span className={styles.badgeIcon}>✓</span>
-                <span className={styles.badgeText}>100% Verified</span>
+                {/* <span className={styles.badgeText}>100% Verified</span> */}
               </div>
             </div>
           </div>
