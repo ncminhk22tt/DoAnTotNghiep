@@ -249,10 +249,7 @@ export default function HomePage() {
                 src="https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?w=600&h=700&fit=crop"
                 alt="Doctor"
               />
-              <div className={styles.badge}>
-                <span className={styles.badgeIcon}>✓</span>
-                {/* <span className={styles.badgeText}>100% Verified</span> */}
-              </div>
+              
             </div>
           </div>
         </div>

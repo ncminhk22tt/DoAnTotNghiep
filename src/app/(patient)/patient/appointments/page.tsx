@@ -21,7 +21,13 @@ type AppointmentItem = {
   work_date: string | null;
   start_time: string | null;
   end_time: string | null;
+  room: string | null;
+  price: number | null;
   doctor_name: string | null;
+  doctor_code: string | null;
+  doctor_phone: string | null;
+  specialty_id: number | null;
+  specialty_name: string | null;
   service_name: string | null;
 };
 
@@ -38,6 +44,18 @@ type MedicalRecord = {
   diagnosis: string | null;
   notes: string | null;
   created_at: string | null;
+};
+
+type MedicalRecordResponseItem = {
+  medical_record: MedicalRecord;
+};
+
+type BookingMeta = {
+  full_name: string | null;
+  phone: string | null;
+  gender: string | null;
+  birth_year: string | null;
+  reason: string | null;
 };
 
 function normalizeDate(value: string | null): string {
@@ -57,6 +75,14 @@ function normalizeDate(value: string | null): string {
   return value.slice(0, 10);
 }
 
+function formatDisplayDate(value: string | null): string {
+  const normalized = normalizeDate(value);
+  if (!normalized) return "-";
+  const [year, month, day] = normalized.split("-");
+  if (!year || !month || !day) return normalized;
+  return `${day}-${month}-${year}`;
+}
+
 function normalizeTime(value: string | null): string {
   if (!value) return "";
   return value.slice(0, 5);
@@ -64,6 +90,27 @@ function normalizeTime(value: string | null): string {
 
 function isValidDateInput(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function getTodayClinicDate(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function isPastClinicDate(value: string): boolean {
+  return isValidDateInput(value) && value < getTodayClinicDate();
+}
+
+function isPastSlot(date: string, startTime: string | null): boolean {
+  const start = normalizeTime(startTime);
+  if (!isValidDateInput(date) || !start) return false;
+  const slotTime = new Date(`${date}T${start}:00+07:00`);
+  if (Number.isNaN(slotTime.getTime())) return false;
+  return slotTime.getTime() <= Date.now();
 }
 
 function isPastAppointment(item: AppointmentItem): boolean {
@@ -80,22 +127,22 @@ function isPastAppointment(item: AppointmentItem): boolean {
 function parseCancelInfo(adminNote: string | null): { cancelledBy: string; cancelReason: string } {
   const value = (adminNote || "").trim();
   if (!value) return { cancelledBy: "-", cancelReason: "-" };
-  if (value.startsWith("[Benh nhan huy]")) {
+  if (value.startsWith("[Bệnh nhân hủy]") || value.startsWith("[Benh nhan huy]")) {
     return {
       cancelledBy: "Bệnh nhân",
-      cancelReason: value.replace("[Benh nhan huy]", "").trim() || "-",
+      cancelReason: value.replace("[Bệnh nhân hủy]", "").replace("[Benh nhan huy]", "").trim() || "-",
     };
   }
-  if (value.startsWith("[Bac si huy]")) {
+  if (value.startsWith("[Bác sĩ hủy]") || value.startsWith("[Bac si huy]")) {
     return {
       cancelledBy: "Bác sĩ",
-      cancelReason: value.replace("[Bac si huy]", "").trim() || "-",
+      cancelReason: value.replace("[Bác sĩ hủy]", "").replace("[Bac si huy]", "").trim() || "-",
     };
   }
-  if (value.startsWith("[Admin huy]")) {
+  if (value.startsWith("[Admin hủy]") || value.startsWith("[Admin huy]")) {
     return {
       cancelledBy: "Admin",
-      cancelReason: value.replace("[Admin huy]", "").trim() || "-",
+      cancelReason: value.replace("[Admin hủy]", "").replace("[Admin huy]", "").trim() || "-",
     };
   }
   return { cancelledBy: "Khác", cancelReason: value };
@@ -132,7 +179,7 @@ function parseRescheduleInfo(adminNote: string | null): {
             day: "2-digit",
           }).format(parsedDate);
 
-    return `${yyyyMmDd} (${start} - ${end})`;
+    return `${formatDisplayDate(yyyyMmDd)} (${start} - ${end})`;
   };
 
   return {
@@ -140,6 +187,10 @@ function parseRescheduleInfo(adminNote: string | null): {
     fromSchedule: formatSchedulePart(fromPart),
     toSchedule: formatSchedulePart(right),
   };
+}
+
+function hasRescheduled(adminNote: string | null): boolean {
+  return Boolean(parseRescheduleInfo(adminNote));
 }
 
 function statusLabel(status: AppointmentStatus) {
@@ -157,7 +208,7 @@ function statusClass(status: AppointmentStatus) {
 }
 
 function formatTimeRange(item: AppointmentItem) {
-  const date = normalizeDate(item.work_date) || "-";
+  const date = formatDisplayDate(item.work_date);
   const start = normalizeTime(item.start_time) || "--:--";
   const end = normalizeTime(item.end_time) || "--:--";
   return `${date} (${start} - ${end})`;
@@ -172,6 +223,47 @@ function formatBookingNote(note: string | null): string {
     .replace(/Gioi tinh:/gi, "Giới tính:")
     .replace(/Nam sinh:/gi, "Năm sinh:")
     .replace(/Ly do kham:/gi, "Lý do khám:");
+}
+
+function normalizeGenderLabel(value: string | null): string | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (["nu", "nữ", "female", "f"].includes(normalized)) return "Nữ";
+  if (["nam", "male", "m"].includes(normalized)) return "Nam";
+  return value.trim();
+}
+
+function parseBookingMeta(note: string | null): BookingMeta {
+  const empty: BookingMeta = {
+    full_name: null,
+    phone: null,
+    gender: null,
+    birth_year: null,
+    reason: null,
+  };
+  const text = formatBookingNote(note);
+  if (!text || text === "-") return empty;
+
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const read = (prefix: string) => {
+    const found = lines.find((line) => line.toLowerCase().startsWith(prefix.toLowerCase()));
+    if (!found) return null;
+    const value = found.slice(prefix.length).trim();
+    return value || null;
+  };
+
+  return {
+    full_name: read("Họ và tên:"),
+    phone: read("Số điện thoại:"),
+    gender: normalizeGenderLabel(read("Giới tính:")),
+    birth_year: read("Năm sinh:"),
+    reason: read("Lý do khám:"),
+  };
 }
 
 function getDefaultRevisitDate() {
@@ -222,13 +314,16 @@ export default function PatientAppointmentsPage() {
     serviceId: number | null
   ): Promise<SlotItem[]> {
     if (!isValidDateInput(date)) return [];
+    if (isPastClinicDate(date)) return [];
     const token = getAccessToken();
     const serviceQuery = serviceId ? `&service_id=${serviceId}` : "";
     const result = await apiClient.get<{ data: SlotItem[] }>(
       `/api/public/doctors/${doctorId}/schedule?date=${date}${serviceQuery}`,
       token
     );
-    return (result.data || []).filter((slot) => slot.status === "available");
+    return (result.data || []).filter(
+      (slot) => slot.status === "available" && !isPastSlot(date, slot.start_time)
+    );
   }
 
   async function loadAppointments() {
@@ -238,7 +333,7 @@ export default function PatientAppointmentsPage() {
       const token = getAccessToken();
       const [appointmentsResult, recordsResult] = await Promise.allSettled([
         apiClient.get<{ data: AppointmentItem[] }>("/api/patient/appointments", token),
-        apiClient.get<{ data: MedicalRecord[] }>("/api/patient/medical-records", token),
+        apiClient.get<{ data: MedicalRecordResponseItem[] }>("/api/patient/medical-records", token),
       ]);
 
       if (appointmentsResult.status === "fulfilled") {
@@ -256,7 +351,7 @@ export default function PatientAppointmentsPage() {
       if (recordsResult.status === "fulfilled") {
         const nextMap = new Map<number, MedicalRecord>();
         (recordsResult.value.data || []).forEach((record) => {
-          nextMap.set(record.appointment_id, record);
+          nextMap.set(record.medical_record.appointment_id, record.medical_record);
         });
         setRecordsByAppointmentId(nextMap);
       } else {
@@ -461,8 +556,11 @@ export default function PatientAppointmentsPage() {
           <div className={styles.list}>
             {filteredAppointments.map((item) => {
               const record = recordsByAppointmentId.get(item.id) || null;
-              const canUpdatePendingAppointment =
+              const bookingMeta = parseBookingMeta(item.note);
+              const canCancelPendingAppointment =
                 (item.status === "pending" || item.status === "confirmed") && !isPastAppointment(item);
+              const canRescheduleAppointment =
+                canCancelPendingAppointment && !hasRescheduled(item.admin_note);
               return (
                 <article key={item.id} className={styles.item}>
                   <div className={styles.itemTop}>
@@ -474,16 +572,55 @@ export default function PatientAppointmentsPage() {
                     </span>
                   </div>
 
+                  <div className={styles.infoSplit}>
+                    <div className={styles.infoBoxUser}>
+                      <div className={styles.infoBoxTitle}>Thông tin người dùng</div>
+                      <div className={styles.headerLine}>
+                        <strong>Họ tên:</strong> {bookingMeta.full_name || "-"}
+                      </div>
+                      <div className={styles.headerLine}>
+                        <strong>Số điện thoại:</strong> {bookingMeta.phone || "-"}
+                      </div>
+                      <div className={styles.headerLine}>
+                        <strong>Giới tính:</strong> {bookingMeta.gender || "-"}
+                      </div>
+                      <div className={styles.headerLine}>
+                        <strong>Năm sinh:</strong> {bookingMeta.birth_year || "-"}
+                      </div>
+                      <div className={styles.headerLine}>
+                        <strong>Lý do khám:</strong> {bookingMeta.reason || "-"}
+                      </div>
+                    </div>
+
+                    <div className={styles.infoBoxDoctor}>
+                      <div className={styles.infoBoxTitle}>Thông tin bác sĩ</div>
+                      <div className={styles.headerLine}>
+                        <strong>Bác sĩ:</strong> {item.doctor_name || "-"}
+                      </div>
+                      <div className={styles.headerLine}>
+                        <strong>Mã bác sĩ:</strong> {item.doctor_code || "-"}
+                      </div>
+                      <div className={styles.headerLine}>
+                        <strong>Số điện thoại:</strong> {item.doctor_phone || "-"}
+                      </div>
+                      <div className={styles.headerLine}>
+                        <strong>Khoa:</strong> {item.specialty_name || "-"}
+                      </div>
+                      <div className={styles.headerLine}>
+                        <strong>Dịch vụ:</strong> {item.service_name || "-"}
+                      </div>
+                      <div className={styles.headerLine}>
+                        <strong>Phòng:</strong> {item.room || "-"}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className={styles.metaGrid}>
                     <div>
                       <strong>Lịch khám:</strong> {formatTimeRange(item)}
                     </div>
                     <div>
-                      <strong>Bác sĩ:</strong> {item.doctor_name || "-"}
-                    </div>
-                    <div>
-                      <strong>Ghi chú đặt lịch:</strong>
-                      <div style={{ whiteSpace: "pre-line" }}>{formatBookingNote(item.note)}</div>
+                      <strong>Giá tiền:</strong> {Number(item.price || 0).toLocaleString("vi-VN")} đ
                     </div>
                     {item.status === "cancelled" ? (
                       <div>
@@ -517,11 +654,13 @@ export default function PatientAppointmentsPage() {
                     </div>
                   ) : null}
 
-                  {canUpdatePendingAppointment ? (
+                  {canCancelPendingAppointment ? (
                     <div className={styles.actions}>
-                      <button className={styles.secondaryBtn} onClick={() => openReschedule(item)}>
-                        Đổi lịch
-                      </button>
+                      {canRescheduleAppointment ? (
+                        <button className={styles.secondaryBtn} onClick={() => openReschedule(item)}>
+                          Đổi lịch
+                        </button>
+                      ) : null}
                       <button
                         className={styles.cancelBtn}
                         onClick={() => setCancelModal({ appointmentId: item.id, reason: "" })}
@@ -552,6 +691,7 @@ export default function PatientAppointmentsPage() {
             <input
               className={styles.control}
               type="date"
+              min={getTodayClinicDate()}
               value={reschedule.date}
               onChange={(e) => {
                 const nextDate = e.target.value;
@@ -567,7 +707,7 @@ export default function PatientAppointmentsPage() {
                 });
 
                 const current = reschedule;
-                if (!current || !isValidDateInput(nextDate)) {
+                if (!current || !isValidDateInput(nextDate) || isPastClinicDate(nextDate)) {
                   setReschedule((prev) => (prev ? { ...prev, loadingSlots: false } : prev));
                   return;
                 }
@@ -594,6 +734,8 @@ export default function PatientAppointmentsPage() {
 
             {reschedule.loadingSlots ? (
               <p className={styles.empty}>Đang tải khung giờ...</p>
+            ) : reschedule.slots.length === 0 ? (
+              <p className={styles.empty}>Không có khung giờ hợp lệ để đổi lịch.</p>
             ) : (
               <select
                 className={styles.control}

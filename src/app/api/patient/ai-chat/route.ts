@@ -234,14 +234,14 @@ function toFriendlyAiError(payload: GeminiResponse, model: string): string {
     lower.includes("try again later") ||
     lower.includes("resource exhausted")
   ) {
-    return "He thong AI dang qua tai tam thoi. Vui long thu lai sau 10-30 giay.";
+    return "Hệ thống AI đang quá tải tạm thời. Vui lòng thử lại sau 10-30 giây.";
   }
 
   if (lower.includes("not found") || lower.includes("call listmodels")) {
-    return `Model AI hien tai khong con ho tro (${model}). Vui long doi model khac.`;
+    return `Model AI hiện tại không còn hỗ trợ (${model}). Vui lòng đổi model khác.`;
   }
 
-  return "AI tam thoi khong phan hoi. Vui long thu lai sau.";
+  return "AI tạm thời không phản hồi. Vui lòng thử lại sau.";
 }
 
 async function listGenerateContentModels(apiKey: string): Promise<string[]> {
@@ -357,6 +357,14 @@ function formatDateYmd(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function formatDisplayDate(value: string | null | undefined): string {
+  if (!value) return "-";
+  const datePart = value.includes("T") ? value.slice(0, 10) : value.slice(0, 10);
+  const [year, month, day] = datePart.split("-");
+  if (!year || !month || !day) return value;
+  return `${day}-${month}-${year}`;
+}
+
 function parseDateFromText(rawText: string): { from: string; to: string; label: string } | null {
   const text = rawText.toLowerCase();
   const now = new Date();
@@ -364,7 +372,7 @@ function parseDateFromText(rawText: string): { from: string; to: string; label: 
   const isoMatch = text.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
   if (isoMatch) {
     const date = `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
-    return { from: date, to: date, label: date };
+    return { from: date, to: date, label: formatDisplayDate(date) };
   }
 
   const vnDateMatch = text.match(/\b([0-3]?\d)\/([01]?\d)(?:\/(20\d{2}))?\b/);
@@ -373,35 +381,35 @@ function parseDateFromText(rawText: string): { from: string; to: string; label: 
     const month = vnDateMatch[2].padStart(2, "0");
     const year = vnDateMatch[3] || String(now.getFullYear());
     const date = `${year}-${month}-${day}`;
-    return { from: date, to: date, label: date };
+    return { from: date, to: date, label: formatDisplayDate(date) };
   }
 
   const normalized = normalizeSearchText(rawText);
   if (normalized.includes("homnay")) {
     const date = formatDateYmd(now);
-    return { from: date, to: date, label: "hom nay" };
+    return { from: date, to: date, label: "hôm nay" };
   }
   if (normalized.includes("ngaymai")) {
     const next = new Date(now);
     next.setDate(now.getDate() + 1);
     const date = formatDateYmd(next);
-    return { from: date, to: date, label: "ngay mai" };
+    return { from: date, to: date, label: "ngày mai" };
   }
   if (normalized.includes("tuannay") || normalized.includes("trongtuan")) {
     const start = new Date(now);
     const end = new Date(now);
     end.setDate(now.getDate() + 6);
-    return { from: formatDateYmd(start), to: formatDateYmd(end), label: "trong 7 ngay toi" };
+    return { from: formatDateYmd(start), to: formatDateYmd(end), label: "trong 7 ngày tới" };
   }
 
   const weekdayMap: Array<{ pattern: RegExp; day: number; label: string }> = [
-    { pattern: /\bthu[\s\-]*2\b/i, day: 1, label: "Thu 2" },
-    { pattern: /\bthu[\s\-]*3\b/i, day: 2, label: "Thu 3" },
-    { pattern: /\bthu[\s\-]*4\b/i, day: 3, label: "Thu 4" },
-    { pattern: /\bthu[\s\-]*5\b/i, day: 4, label: "Thu 5" },
-    { pattern: /\bthu[\s\-]*6\b/i, day: 5, label: "Thu 6" },
-    { pattern: /\bthu[\s\-]*7\b/i, day: 6, label: "Thu 7" },
-    { pattern: /\bchu\s*nhat\b/i, day: 0, label: "Chu nhat" },
+    { pattern: /\bthu[\s\-]*2\b/i, day: 1, label: "Thứ 2" },
+    { pattern: /\bthu[\s\-]*3\b/i, day: 2, label: "Thứ 3" },
+    { pattern: /\bthu[\s\-]*4\b/i, day: 3, label: "Thứ 4" },
+    { pattern: /\bthu[\s\-]*5\b/i, day: 4, label: "Thứ 5" },
+    { pattern: /\bthu[\s\-]*6\b/i, day: 5, label: "Thứ 6" },
+    { pattern: /\bthu[\s\-]*7\b/i, day: 6, label: "Thứ 7" },
+    { pattern: /\bchu\s*nhat\b/i, day: 0, label: "Chủ nhật" },
   ];
 
   const foundWeekday = weekdayMap.find((x) => x.pattern.test(text));
@@ -424,72 +432,72 @@ function tryFaqAnswer(userText: string): string | null {
 
   if (includesAny(t, ["gio lam viec", "mo cua", "dong cua", "lam viec may gio"])) {
     return [
-      "Gio lam viec tham khao:",
-      "- Thu 2 - Thu 7: 07:30 - 17:00",
-      "- Chu nhat: 07:30 - 11:30",
-      "Ban co the dat lich nhanh tai: [/dich-vu](/dich-vu)",
+      "Giờ làm việc tham khảo:",
+      "- Thứ 2 - Thứ 7: 07:30 - 17:00",
+      "- Chủ nhật: 07:30 - 11:30",
+      "Bạn có thể đặt lịch nhanh tại: [/dich-vu](/dich-vu)",
     ].join("\n");
   }
 
   if (includesAny(t, ["dia chi", "o dau", "phong kham o dau", "chi nhanh"])) {
     return [
-      "Dia chi phong kham hien dang duoc cau hinh trong he thong admin.",
-      "Neu ban can, minh co the huong dan ban xem danh sach khoa/bac si de dat lich nhanh: [/dich-vu](/dich-vu).",
+      "Địa chỉ phòng khám hiện đang được cấu hình trong hệ thống admin.",
+      "Nếu bạn cần, mình có thể hướng dẫn bạn xem danh sách khoa/bác sĩ để đặt lịch nhanh: [/dich-vu](/dich-vu).",
     ].join("\n");
   }
 
   if (includesAny(t, ["gia", "chi phi", "bao nhieu tien", "phi kham"])) {
     return [
-      "Chi phi tuy theo dich vu va bac si.",
-      "Ban co the xem gia theo khung gio khi chon bac si va ngay kham tren trang dat lich.",
-      "Di den trang dat lich: [/dich-vu](/dich-vu)",
+      "Chi phí tùy theo dịch vụ và bác sĩ.",
+      "Bạn có thể xem giá theo khung giờ khi chọn bác sĩ và ngày khám trên trang đặt lịch.",
+      "Đi đến trang đặt lịch: [/dich-vu](/dich-vu)",
     ].join("\n");
   }
 
   if (includesAny(t, ["bao hiem", "bhyt", "bao hiem y te"])) {
     return [
-      "Thong tin bao hiem ap dung theo tung dich vu/lich kham.",
-      "Khi vao man hinh dat lich, he thong se hien muc 'Loai bao hiem ap dung'.",
-      "Ban co the bat dau tai: [/dich-vu](/dich-vu)",
+      "Thông tin bảo hiểm áp dụng theo từng dịch vụ/lịch khám.",
+      "Khi vào màn hình đặt lịch, hệ thống sẽ hiện mục 'Loại bảo hiểm áp dụng'.",
+      "Bạn có thể bắt đầu tại: [/dich-vu](/dich-vu)",
     ].join("\n");
   }
 
   if (includesAny(t, ["dat lich", "book lich", "hen kham", "dang ky kham"])) {
     return [
-      "Huong dan dat lich nhanh:",
-      "1. Vao [/dich-vu](/dich-vu) hoac chon khoa/dich vu.",
-      "2. Chon bac si, ngay kham, khung gio.",
-      "3. Nhap thong tin benh nhan va xac nhan dat lich.",
-      "4. Theo doi lich da dat tai [/patient/appointments](/patient/appointments).",
+      "Hướng dẫn đặt lịch nhanh:",
+      "1. Vào [/dich-vu](/dich-vu) hoặc chọn khoa/dịch vụ.",
+      "2. Chọn bác sĩ, ngày khám, khung giờ.",
+      "3. Nhập thông tin bệnh nhân và xác nhận đặt lịch.",
+      "4. Theo dõi lịch đã đặt tại [/patient/appointments](/patient/appointments).",
     ].join("\n");
   }
 
   if (includesAny(t, ["huy lich", "cancel lich"])) {
     return [
-      "Ban co the huy lich tai trang: [/patient/appointments](/patient/appointments).",
-      "Mo lich can huy -> bam 'Huy lich'.",
-      "Luu y: co the ap dung gioi han thoi gian huy truoc gio kham.",
+      "Bạn có thể hủy lịch tại trang: [/patient/appointments](/patient/appointments).",
+      "Mở lịch cần hủy -> bấm 'Hủy lịch'.",
+      "Lưu ý: có thể áp dụng giới hạn thời gian hủy trước giờ khám.",
     ].join("\n");
   }
 
   if (includesAny(t, ["doi lich", "reschedule", "doi gio"])) {
     return [
-      "Ban co the doi lich tai: [/patient/appointments](/patient/appointments).",
-      "Mo lich can doi -> bam 'Doi lich' -> chon slot moi -> xac nhan.",
+      "Bạn có thể đổi lịch tại: [/patient/appointments](/patient/appointments).",
+      "Mở lịch cần đổi -> bấm 'Đổi lịch' -> chọn slot mới -> xác nhận.",
     ].join("\n");
   }
 
   if (includesAny(t, ["tai kham", "kham lai"])) {
     return [
-      "Ban co the dat tai kham tu lich da hoan tat trong: [/patient/appointments](/patient/appointments).",
-      "Mo lich da hoan tat -> bam 'Dat tai kham' -> chon slot phu hop.",
+      "Bạn có thể đặt tái khám từ lịch đã hoàn tất trong: [/patient/appointments](/patient/appointments).",
+      "Mở lịch đã hoàn tất -> bấm 'Đặt tái khám' -> chọn slot phù hợp.",
     ].join("\n");
   }
 
   if (includesAny(t, ["quen mat khau", "reset mat khau", "doi mat khau"])) {
     return [
-      "Neu quen mat khau, ban vao trang dang nhap va chon 'Quen mat khau'.",
-      "He thong se gui huong dan dat lai mat khau qua email da dang ky.",
+      "Nếu quên mật khẩu, bạn vào trang đăng nhập và chọn 'Quên mật khẩu'.",
+      "Hệ thống sẽ gửi hướng dẫn đặt lại mật khẩu qua email đã đăng ký.",
     ].join("\n");
   }
 
@@ -521,10 +529,10 @@ function tryEmergencyAdvice(userText: string): string | null {
   if (!hit) return null;
 
   return [
-    "Canh bao: Trieu chung ban mo ta co the la dau hieu nguy hiem.",
-    "Ban nen den co so y te gan nhat hoac khoa cap cuu ngay.",
-    "Neu can ho tro khan cap, hay goi 115.",
-    "Sau khi on dinh, ban co the theo doi lich hen tai [/patient/appointments](/patient/appointments).",
+    "Cảnh báo: Triệu chứng bạn mô tả có thể là dấu hiệu nguy hiểm.",
+    "Bạn nên đến cơ sở y tế gần nhất hoặc khoa cấp cứu ngay.",
+    "Nếu cần hỗ trợ khẩn cấp, hãy gọi 115.",
+    "Sau khi ổn định, bạn có thể theo dõi lịch hẹn tại [/patient/appointments](/patient/appointments).",
   ].join("\n");
 }
 
@@ -603,10 +611,10 @@ async function tryDirectSymptomTriage(userText: string): Promise<string | null> 
   // instead of forcing Eye specialty and causing wrong guidance.
   if (hasFaceSignals && !hasEyeSpecificSignals) {
     return [
-      "Ban dang nhap 'kham mat' nen he thong co the hieu 2 nghia:",
-      "- Mat (khuon mat/da mat): thuong phu hop Khoa Da lieu.",
-      "- Mat (co quan nhin): phu hop Khoa Mat.",
-      "Ban vui long mo ta ro hon (vi du: mun da mat, nam da, hay nhin mo/cay mat) de minh goi y chinh xac hon.",
+      "Bạn đang nhập 'khám mặt' nên hệ thống có thể hiểu 2 nghĩa:",
+      "- Mặt (khuôn mặt/da mặt): thường phù hợp Khoa Da liễu.",
+      "- Mắt (cơ quan nhìn): phù hợp Khoa Mắt.",
+      "Bạn vui lòng mô tả rõ hơn (ví dụ: mụn da mặt, nám da, hay nhìn mờ/cay mắt) để mình gợi ý chính xác hơn.",
     ].join("\n");
   }
 
@@ -656,15 +664,15 @@ async function tryDirectSymptomTriage(userText: string): Promise<string | null> 
 
   const lines: string[] = [];
   lines.push(
-    "Voi trieu chung ban mo ta, khoa phu hop de kham ban dau la:"
+    "Với triệu chứng bạn mô tả, khoa phù hợp để khám ban đầu là:"
   );
   lines.push(`- ${selectedSpecialty.name} (ID ${selectedSpecialty.id})`);
   if (selectedSpecialty.description) {
-    lines.push(`Mo ta khoa: ${shortenText(selectedSpecialty.description, 220)}`);
+    lines.push(`Mô tả khoa: ${shortenText(selectedSpecialty.description, 220)}`);
   }
 
   if (services.length) {
-    lines.push("Dich vu goi y:");
+    lines.push("Dịch vụ gợi ý:");
     for (const service of services) {
       lines.push(
         `- [${service.name}](/dich-vu/${service.id})${
@@ -673,15 +681,15 @@ async function tryDirectSymptomTriage(userText: string): Promise<string | null> 
       );
     }
   } else {
-    lines.push("Hien khoa nay chua co dich vu duoc cau hinh.");
+    lines.push("Hiện khoa này chưa có dịch vụ được cấu hình.");
   }
 
   if (doctors.length) {
-    lines.push("Bac si goi y:");
+    lines.push("Bác sĩ gợi ý:");
     for (const doctor of doctors) {
       const meta = [
-        doctor.doctor_code ? `Ma ${doctor.doctor_code}` : "",
-        doctor.experience ? `${doctor.experience} nam kinh nghiem` : "",
+        doctor.doctor_code ? `Mã ${doctor.doctor_code}` : "",
+        doctor.experience ? `${doctor.experience} năm kinh nghiệm` : "",
       ]
         .filter(Boolean)
         .join(", ");
@@ -690,11 +698,11 @@ async function tryDirectSymptomTriage(userText: string): Promise<string | null> 
       );
     }
   } else {
-    lines.push("Hien khoa nay chua co bac si dang hoat dong.");
+    lines.push("Hiện khoa này chưa có bác sĩ đang hoạt động.");
   }
 
   lines.push(
-    "Luu y: Day la goi y tham khao, khong thay the chan doan. Neu trieu chung nang len, ban nen den co so y te som."
+    "Lưu ý: Đây là gợi ý tham khảo, không thay thế chẩn đoán. Nếu triệu chứng nặng lên, bạn nên đến cơ sở y tế sớm."
   );
 
   return lines.join("\n");
@@ -733,8 +741,8 @@ async function tryDirectServiceLookup(userText: string): Promise<string | null> 
 
   if (!matched) {
     return serviceNo
-      ? `Khong tim thay dich vu co ma ${serviceNo}. Ban vui long kiem tra lai ten/ma dich vu.`
-      : "Khong tim thay dich vu phu hop. Ban vui long nhap ro hon ten dich vu.";
+      ? `Không tìm thấy dịch vụ có mã ${serviceNo}. Bạn vui lòng kiểm tra lại tên/mã dịch vụ.`
+      : "Không tìm thấy dịch vụ phù hợp. Bạn vui lòng nhập rõ hơn tên dịch vụ.";
   }
 
   const [doctors] = await db.execute<ServiceDoctorLookupRow[]>(
@@ -756,26 +764,26 @@ async function tryDirectServiceLookup(userText: string): Promise<string | null> 
 
   const lines: string[] = [];
   lines.push(
-    `Tim thay dich vu: ${matched.name}${
+    `Tìm thấy dịch vụ: ${matched.name}${
       matched.specialty_name ? ` (Khoa: ${matched.specialty_name})` : ""
     }.`
   );
   if (matched.description) {
-    lines.push(`Mo ta: ${shortenText(matched.description, 220)}`);
+    lines.push(`Mô tả: ${shortenText(matched.description, 220)}`);
   }
 
   if (!doctors.length) {
-    lines.push("Hien chua co bac si duoc gan cho dich vu nay.");
+    lines.push("Hiện chưa có bác sĩ được gán cho dịch vụ này.");
     return lines.join("\n");
   }
 
-  lines.push("Bac si phu hop voi dich vu nay:");
+  lines.push("Bác sĩ phù hợp với dịch vụ này:");
   for (const doctor of doctors.slice(0, 8)) {
     const link = `/bac-si/${doctor.doctor_id}?service_id=${matched.id}`;
     const meta = [
       doctor.specialty_name ? `Khoa ${doctor.specialty_name}` : "",
-      doctor.experience ? `${doctor.experience} nam kinh nghiem` : "",
-      doctor.doctor_code ? `Ma ${doctor.doctor_code}` : "",
+      doctor.experience ? `${doctor.experience} năm kinh nghiệm` : "",
+      doctor.doctor_code ? `Mã ${doctor.doctor_code}` : "",
     ]
       .filter(Boolean)
       .join(", ");
@@ -837,20 +845,20 @@ async function tryExactExamLookup(userText: string): Promise<string | null> {
     );
 
     const lines: string[] = [];
-    lines.push(`TĂ¬m tháº¥y Ä‘Ăºng dá»‹ch vá»¥ theo yĂªu cáº§u: ${serviceMatch.name}.`);
+    lines.push(`Tìm thấy đúng dịch vụ theo yêu cầu: ${serviceMatch.name}.`);
     if (serviceMatch.specialty_name) lines.push(`Khoa: ${serviceMatch.specialty_name}`);
-    if (serviceMatch.description) lines.push(`MĂ´ táº£: ${shortenText(serviceMatch.description, 220)}`);
+    if (serviceMatch.description) lines.push(`Mô tả: ${shortenText(serviceMatch.description, 220)}`);
 
     if (!doctors.length) {
-      lines.push("Hiá»‡n chÆ°a cĂ³ bĂ¡c sÄ© cho dá»‹ch vá»¥ nĂ y.");
+      lines.push("Hiện chưa có bác sĩ cho dịch vụ này.");
     } else {
-      lines.push("BĂ¡c sÄ© phĂ¹ há»£p:");
+      lines.push("Bác sĩ phù hợp:");
       for (const doctor of doctors.slice(0, 8)) {
         const link = `/bac-si/${doctor.doctor_id}?service_id=${serviceMatch.id}`;
         const meta = [
           doctor.specialty_name ? `Khoa ${doctor.specialty_name}` : "",
-          doctor.experience ? `${doctor.experience} nÄƒm kinh nghiá»‡m` : "",
-          doctor.doctor_code ? `Ma ${doctor.doctor_code}` : "",
+          doctor.experience ? `${doctor.experience} năm kinh nghiệm` : "",
+          doctor.doctor_code ? `Mã ${doctor.doctor_code}` : "",
         ]
           .filter(Boolean)
           .join(", ");
@@ -877,12 +885,12 @@ async function tryExactExamLookup(userText: string): Promise<string | null> {
     );
 
     const lines: string[] = [];
-    lines.push(`TĂ¬m tháº¥y Ä‘Ăºng khoa theo yĂªu cáº§u: ${specialtyMatch.name}.`);
-    if (specialtyMatch.description) lines.push(`MĂ´ táº£: ${shortenText(specialtyMatch.description, 220)}`);
+    lines.push(`Tìm thấy đúng khoa theo yêu cầu: ${specialtyMatch.name}.`);
+    if (specialtyMatch.description) lines.push(`Mô tả: ${shortenText(specialtyMatch.description, 220)}`);
     if (!specServices.length) {
-      lines.push("Khoa nĂ y hiá»‡n chÆ°a cĂ³ dá»‹ch vá»¥.");
+      lines.push("Khoa này hiện chưa có dịch vụ.");
     } else {
-      lines.push("Dá»‹ch vá»¥ trong khoa:");
+      lines.push("Dịch vụ trong khoa:");
       for (const service of specServices) {
         lines.push(`- [${service.name}](/dich-vu/${service.id})`);
       }
@@ -890,7 +898,7 @@ async function tryExactExamLookup(userText: string): Promise<string | null> {
     return lines.join("\n");
   }
 
-  return `KhĂ´ng tĂ¬m tháº¥y Ä‘Ăºng dá»¯ liá»‡u cho '${queryAfterKham}' trong há»‡ thá»‘ng.`;
+  return `Không tìm thấy đúng dữ liệu cho '${queryAfterKham}' trong hệ thống.`;
 }
 
 async function tryServiceScheduleLookup(userText: string): Promise<string | null> {
@@ -959,44 +967,62 @@ async function tryServiceScheduleLookup(userText: string): Promise<string | null
 
   const lines: string[] = [];
   lines.push(
-    `Lá»‹ch khĂ¡m cho dá»‹ch vá»¥ ${matchedService.name}${
-      dateFilter ? ` (${dateFilter.label})` : " (7 ngĂ y tá»›i)"
+    `Lịch khám cho dịch vụ ${matchedService.name}${
+      dateFilter ? ` (${dateFilter.label})` : " (7 ngày tới)"
     }:`
   );
 
   if (!rows.length) {
-    lines.push("Hiá»‡n khĂ´ng cĂ³ lá»‹ch phĂ¹ há»£p.");
-    lines.push("Báº¡n cĂ³ thá»ƒ thá»­ ngĂ y khĂ¡c hoáº·c xem thĂªm táº¡i [/dich-vu](/dich-vu).");
+    lines.push("Hiện không có lịch phù hợp.");
+    lines.push("Bạn có thể thử ngày khác hoặc xem thêm tại [/dich-vu](/dich-vu).");
     return lines.join("\n");
   }
 
-  const grouped = new Map<number, { doctorName: string; doctorCode: string | null; slots: string[] }>();
+  const grouped = new Map<
+    number,
+    {
+      doctorName: string;
+      doctorCode: string | null;
+      days: Map<string, { start: string; end: string; hasAvailable: boolean }>;
+    }
+  >();
   for (const row of rows) {
     if (!grouped.has(row.doctor_id)) {
       grouped.set(row.doctor_id, {
         doctorName: row.doctor_name,
         doctorCode: row.doctor_code,
-        slots: [],
+        days: new Map(),
       });
     }
-    grouped
-      .get(row.doctor_id)
-      ?.slots.push(
-        `${row.work_date} ${row.start_time.slice(0, 5)}-${row.end_time.slice(0, 5)}${
-          row.status === "full" ? " (Ä‘Ă£ Ä‘áº§y)" : ""
-        }`
-      );
+    const doctor = grouped.get(row.doctor_id);
+    if (!doctor) continue;
+    const current = doctor.days.get(row.work_date);
+    const start = row.start_time.slice(0, 5);
+    const end = row.end_time.slice(0, 5);
+    if (!current) {
+      doctor.days.set(row.work_date, {
+        start,
+        end,
+        hasAvailable: row.status === "available",
+      });
+    } else {
+      if (start < current.start) current.start = start;
+      if (end > current.end) current.end = end;
+      current.hasAvailable = current.hasAvailable || row.status === "available";
+    }
   }
 
   for (const [doctorId, info] of grouped.entries()) {
     const doctorLink = `/bac-si/${doctorId}?service_id=${matchedService.id}`;
+    const dayParts = [...info.days.entries()].map(([date, day]) => {
+      const text = `${formatDisplayDate(date)}: ${day.start}-${day.end}`;
+      return day.hasAvailable ? text : `${text} đã hết`;
+    });
     lines.push(
-      `- [${info.doctorName}](${doctorLink})${info.doctorCode ? ` (MĂ£ ${info.doctorCode})` : ""}: ${info.slots
-        .slice(0, 8)
-        .join(" | ")}`
+      `- [${info.doctorName}](${doctorLink})${info.doctorCode ? ` (Mã ${info.doctorCode})` : ""}: ${dayParts.join(" | ")}`
     );
   }
-  lines.push("Báº¡n cĂ³ thá»ƒ báº¥m vĂ o tĂªn bĂ¡c sÄ© Ä‘á»ƒ xem lá»‹ch chi tiáº¿t ngay trong chat.");
+  lines.push("Bạn có thể bấm vào tên bác sĩ để xem lịch chi tiết ngay trong chat.");
   return lines.join("\n");
 }
 
@@ -1035,17 +1061,17 @@ async function tryGeneralWeeklyScheduleLookup(userText: string): Promise<string 
   );
 
   if (!rows.length) {
-    return "Hiá»‡n táº¡i chÆ°a cĂ³ lá»‹ch.";
+    return "Hiện tại chưa có lịch.";
   }
 
   const lines: string[] = [];
-  lines.push("Lá»‹ch khĂ¡m trong 7 ngĂ y tá»›i:");
+  lines.push("Lịch khám trong 7 ngày tới:");
   for (const row of rows) {
     const doctorLink = `/bac-si/${row.doctor_id}${row.service_id ? `?service_id=${row.service_id}` : ""}`;
     lines.push(
-      `- ${row.work_date} ${row.start_time.slice(0, 5)}-${row.end_time.slice(0, 5)} | [${row.doctor_name}](${doctorLink}) | ${
-        row.service_name || "ChÆ°a gáº¯n dá»‹ch vá»¥"
-      }${row.status === "full" ? " (Ä‘Ă£ Ä‘áº§y)" : ""}`
+      `- ${formatDisplayDate(row.work_date)} ${row.start_time.slice(0, 5)}-${row.end_time.slice(0, 5)} | [${row.doctor_name}](${doctorLink}) | ${
+        row.service_name || "Chưa gắn dịch vụ"
+      }${row.status === "full" ? " (đã đầy)" : ""}`
     );
   }
   return lines.join("\n");
@@ -1076,8 +1102,8 @@ async function tryDirectSpecialtyLookup(userText: string): Promise<string | null
 
   if (!matched) {
     return specialtyNo
-      ? `Khong tim thay khoa co ma ${specialtyNo}. Ban vui long kiem tra lai ten/ma khoa.`
-      : "Khong tim thay khoa phu hop. Ban vui long nhap ro hon ten khoa.";
+      ? `Không tìm thấy khoa có mã ${specialtyNo}. Bạn vui lòng kiểm tra lại tên/mã khoa.`
+      : "Không tìm thấy khoa phù hợp. Bạn vui lòng nhập rõ hơn tên khoa.";
   }
 
   const softDeleteReady = await getServiceSoftDeleteReady();
@@ -1107,15 +1133,15 @@ async function tryDirectSpecialtyLookup(userText: string): Promise<string | null
   );
 
   const lines: string[] = [];
-  lines.push(`Khoa ${matched.name} (ID ${matched.id}) co cac thong tin sau:`);
+  lines.push(`Khoa ${matched.name} (ID ${matched.id}) có các thông tin sau:`);
   if (matched.description) {
-    lines.push(`Mo ta khoa: ${shortenText(matched.description, 220)}`);
+    lines.push(`Mô tả khoa: ${shortenText(matched.description, 220)}`);
   }
 
   if (!services.length) {
-    lines.push("Hien khoa nay chua co dich vu.");
+    lines.push("Hiện khoa này chưa có dịch vụ.");
   } else {
-    lines.push("Dich vu trong khoa:");
+    lines.push("Dịch vụ trong khoa:");
     for (const service of services) {
       lines.push(
         `- [${service.name}](/dich-vu/${service.id})${
@@ -1126,13 +1152,13 @@ async function tryDirectSpecialtyLookup(userText: string): Promise<string | null
   }
 
   if (!doctors.length) {
-    lines.push("Hien khoa nay chua co bac si dang hoat dong.");
+    lines.push("Hiện khoa này chưa có bác sĩ đang hoạt động.");
   } else {
-    lines.push("Bac si lien quan:");
+    lines.push("Bác sĩ liên quan:");
     for (const doctor of doctors) {
       const meta = [
-        doctor.doctor_code ? `Ma ${doctor.doctor_code}` : "",
-        doctor.experience ? `${doctor.experience} nam kinh nghiem` : "",
+        doctor.doctor_code ? `Mã ${doctor.doctor_code}` : "",
+        doctor.experience ? `${doctor.experience} năm kinh nghiệm` : "",
       ]
         .filter(Boolean)
         .join(", ");
@@ -1187,7 +1213,7 @@ async function tryDirectDoctorLookup(userText: string): Promise<string | null> {
     });
 
   if (!matched) {
-    return `Khong tim thay bac si '${doctorQuery}' trong he thong.`;
+    return `Không tìm thấy bác sĩ '${doctorQuery}' trong hệ thống.`;
   }
 
   const [services] = await db.execute<ServiceBySpecialtyRow[]>(
@@ -1201,17 +1227,17 @@ async function tryDirectDoctorLookup(userText: string): Promise<string | null> {
   );
 
   const lines: string[] = [];
-  lines.push(`TĂªn: ${matched.doctor_name}`);
-  lines.push(`MĂ£ bĂ¡c sÄ©: ${matched.doctor_code || "-"}`);
+  lines.push(`Tên: ${matched.doctor_name}`);
+  lines.push(`Mã bác sĩ: ${matched.doctor_code || "-"}`);
   lines.push(`Khoa: ${matched.specialty_name || "-"}`);
-  lines.push(`MĂ´ táº£: ${shortenText(matched.doctor_description, 260) || "-"}`);
+  lines.push(`Mô tả: ${shortenText(matched.doctor_description, 260) || "-"}`);
   if (!services.length) {
-    lines.push("Dá»‹ch vá»¥: -");
+    lines.push("Dịch vụ: -");
   } else {
     const serviceLinks = services.map(
       (service) => `[${service.name}](/dich-vu/${service.id}?doctor_id=${matched.doctor_id})`
     );
-    lines.push(`Dá»‹ch vá»¥: ${serviceLinks.join(", ")}`);
+    lines.push(`Dịch vụ: ${serviceLinks.join(", ")}`);
   }
   return lines.join("\n");
 }
@@ -1249,22 +1275,22 @@ async function tryAppointmentReminders(userText: string, userId: number): Promis
 
   if (!rows.length) {
     return [
-      "Ban hien khong co lich kham sap toi.",
-      "Ban co the dat lich nhanh tai: [/dich-vu](/dich-vu)",
+      "Bạn hiện không có lịch khám sắp tới.",
+      "Bạn có thể đặt lịch nhanh tại: [/dich-vu](/dich-vu)",
     ].join("\n");
   }
 
   const lines: string[] = [];
-  lines.push("Day la cac lich kham sap toi cua ban:");
+  lines.push("Đây là các lịch khám sắp tới của bạn:");
   for (const row of rows) {
     lines.push(
-      `- Lich #${row.appointment_id}: ${row.work_date} ${row.start_time.slice(0, 5)}-${row.end_time.slice(
+      `- Lịch #${row.appointment_id}: ${formatDisplayDate(row.work_date)} ${row.start_time.slice(0, 5)}-${row.end_time.slice(
         0,
         5
-      )} | Bac si: ${row.doctor_name || "-"} | Dich vu: ${row.service_name || "-"}`
+      )} | Bác sĩ: ${row.doctor_name || "-"} | Dịch vụ: ${row.service_name || "-"}`
     );
   }
-  lines.push("Ban co the quan ly/huy/doi lich tai [/patient/appointments](/patient/appointments).");
+  lines.push("Bạn có thể quản lý/hủy/đổi lịch tại [/patient/appointments](/patient/appointments).");
   return lines.join("\n");
 }
 
@@ -1302,16 +1328,16 @@ async function tryPendingReviewSuggestion(userText: string, userId: number): Pro
   );
 
   if (!rows.length) {
-    return "Ban hien khong co lich nao can danh gia. Cam on ban da su dung he thong.";
+    return "Bạn hiện không có lịch nào cần đánh giá. Cảm ơn bạn đã sử dụng hệ thống.";
   }
 
   const lines: string[] = [];
-  lines.push("Ban co the danh gia nhanh cac lich da hoan tat nay:");
+  lines.push("Bạn có thể đánh giá nhanh các lịch đã hoàn tất này:");
   for (const row of rows) {
     lines.push(
-      `- Lich #${row.appointment_id} (${row.work_date}) | ${row.service_name || "-"} | BS. ${
+      `- Lịch #${row.appointment_id} (${formatDisplayDate(row.work_date)}) | ${row.service_name || "-"} | BS. ${
         row.doctor_name || "-"
-      } -> [Danh gia ngay](/danh-gia?appointment_id=${row.appointment_id})`
+      } -> [Đánh giá ngay](/danh-gia?appointment_id=${row.appointment_id})`
     );
   }
   return lines.join("\n");
@@ -1357,17 +1383,17 @@ async function tryPatientContextSuggestion(userText: string, userId: number): Pr
   if (!recent) return null;
 
   const lines: string[] = [];
-  lines.push("Goi y theo lich su kham cua ban:");
+  lines.push("Gợi ý theo lịch sử khám của bạn:");
   if (recent.specialty_name && recent.specialty_id) {
-    lines.push(`- Khoa uu tien: ${recent.specialty_name} (ID ${recent.specialty_id})`);
+    lines.push(`- Khoa ưu tiên: ${recent.specialty_name} (ID ${recent.specialty_id})`);
   }
   if (recent.service_name && recent.service_id) {
-    lines.push(`- Dich vu gan day: [${recent.service_name}](/dich-vu/${recent.service_id})`);
+    lines.push(`- Dịch vụ gần đây: [${recent.service_name}](/dich-vu/${recent.service_id})`);
   }
   if (recent.doctor_name && recent.doctor_id) {
-    lines.push(`- Bac si tung kham: [${recent.doctor_name}](/bac-si/${recent.doctor_id})`);
+    lines.push(`- Bác sĩ từng khám: [${recent.doctor_name}](/bac-si/${recent.doctor_id})`);
   }
-  lines.push("Neu ban muon, minh co the tim tiep lich trong tuan cho bac si nay.");
+  lines.push("Nếu bạn muốn, mình có thể tìm tiếp lịch trong tuần cho bác sĩ này.");
   return lines.join("\n");
 }
 
@@ -1389,7 +1415,7 @@ async function buildSpecialtyServiceContext(): Promise<string> {
     );
 
     if (!rows.length) {
-      return "Khong co du lieu khoa/dich vu trong CSDL.";
+      return "Không có dữ liệu khoa/dịch vụ trong CSDL.";
     }
 
     const grouped = new Map<
@@ -1423,11 +1449,11 @@ async function buildSpecialtyServiceContext(): Promise<string> {
     for (const [specialtyId, specialty] of grouped.entries()) {
       lines.push(
         `- Khoa ${specialtyId}: ${specialty.name}` +
-          (shortenText(specialty.description) ? ` | Mo ta: ${shortenText(specialty.description)}` : "")
+          (shortenText(specialty.description) ? ` | Mô tả: ${shortenText(specialty.description)}` : "")
       );
 
       if (specialty.services.length === 0) {
-        lines.push("  Dich vu: Chua co dich vu.");
+        lines.push("  Dịch vụ: Chưa có dịch vụ.");
       } else {
         const serviceParts = specialty.services.map((service) => {
           const serviceId = service.id;
@@ -1437,13 +1463,13 @@ async function buildSpecialtyServiceContext(): Promise<string> {
             ? `[${service.name}](${serviceLink}) (${shortDesc})`
             : `[${service.name}](${serviceLink})`;
         });
-        lines.push(`  Dich vu: ${serviceParts.join("; ")}`);
+        lines.push(`  Dịch vụ: ${serviceParts.join("; ")}`);
       }
     }
 
     return lines.join("\n");
   } catch {
-    return "Khong tai duoc du lieu khoa/dich vu tu CSDL.";
+    return "Không tải được dữ liệu khoa/dịch vụ từ CSDL.";
   }
 }
 
@@ -1471,7 +1497,7 @@ async function buildServiceDoctorContext(): Promise<string> {
     );
 
     if (!rows.length) {
-      return "Khong co du lieu dich vu/bac si trong CSDL.";
+      return "Không có dữ liệu dịch vụ/bác sĩ trong CSDL.";
     }
 
     const grouped = new Map<
@@ -1514,32 +1540,32 @@ async function buildServiceDoctorContext(): Promise<string> {
     const lines: string[] = [];
     for (const [serviceId, service] of grouped.entries()) {
       lines.push(
-        `- Dich vu ${serviceId}: ${service.serviceName}` +
-          (shortenText(service.serviceDescription) ? ` | Mo ta: ${shortenText(service.serviceDescription)}` : "")
+        `- Dịch vụ ${serviceId}: ${service.serviceName}` +
+          (shortenText(service.serviceDescription) ? ` | Mô tả: ${shortenText(service.serviceDescription)}` : "")
       );
 
       if (service.doctors.length === 0) {
-        lines.push("  Bac si phu hop: Chua co du lieu.");
+        lines.push("  Bác sĩ phù hợp: Chưa có dữ liệu.");
       } else {
         const doctorParts = service.doctors.map((doctor) => {
           const meta = [
             doctor.specialtyName ? `Khoa ${doctor.specialtyName}` : "",
-            Number.isFinite(doctor.experience as number) ? `${doctor.experience} nam kinh nghiem` : "",
-            doctor.doctorCode ? `Ma ${doctor.doctorCode}` : "",
+            Number.isFinite(doctor.experience as number) ? `${doctor.experience} năm kinh nghiệm` : "",
+            doctor.doctorCode ? `Mã ${doctor.doctorCode}` : "",
           ].filter(Boolean);
 
           const intro = shortenText(doctor.doctorDescription, 70);
           const base = meta.length ? `${doctor.doctorName} (${meta.join(", ")})` : doctor.doctorName;
           const link = `/bac-si/${doctor.doctorId}?service_id=${serviceId}`;
-          return intro ? `${base} - ${intro} | Lien ket: ${link}` : `${base} | Lien ket: ${link}`;
+          return intro ? `${base} - ${intro} | Liên kết: ${link}` : `${base} | Liên kết: ${link}`;
         });
-        lines.push(`  Bac si phu hop: ${doctorParts.join("; ")}`);
+        lines.push(`  Bác sĩ phù hợp: ${doctorParts.join("; ")}`);
       }
     }
 
     return lines.join("\n");
   } catch {
-    return "Khong tai duoc du lieu dich vu/bac si tu CSDL.";
+    return "Không tải được dữ liệu dịch vụ/bác sĩ từ CSDL.";
   }
 }
 
@@ -1548,7 +1574,7 @@ export async function POST(req: NextRequest) {
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "patient") {
       return NextResponse.json(
-        { success: false, message: "Chi benh nhan moi duoc su dung chat AI" },
+        { success: false, message: "Chỉ bệnh nhân mới được sử dụng chat AI" },
         { status: 403 }
       );
     }
@@ -1557,7 +1583,7 @@ export async function POST(req: NextRequest) {
     const rate = await consumeRateLimit(`ai:chat:${authUser.id}:${ip}`, 30, 60_000);
     if (!rate.allowed) {
       return NextResponse.json(
-        { success: false, message: "Ban gui qua nhieu yeu cau, vui long thu lai sau" },
+        { success: false, message: "Bạn gửi quá nhiều yêu cầu, vui lòng thử lại sau" },
         { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } }
       );
     }
@@ -1567,7 +1593,7 @@ export async function POST(req: NextRequest) {
       body = (await req.json()) as ChatBody;
     } catch {
       return NextResponse.json(
-        { success: false, message: "JSON khong hop le" },
+        { success: false, message: "JSON không hợp lệ" },
         { status: 400 }
       );
     }
@@ -1576,7 +1602,7 @@ export async function POST(req: NextRequest) {
     const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content || "";
     if (!lastUserMessage) {
       return NextResponse.json(
-        { success: false, message: "Noi dung chat khong hop le" },
+        { success: false, message: "Nội dung chat không hợp lệ" },
         { status: 400 }
       );
     }
@@ -1584,7 +1610,7 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { success: false, message: "Chua cau hinh GEMINI_API_KEY" },
+        { success: false, message: "Chưa cấu hình GEMINI_API_KEY" },
         { status: 500 }
       );
     }
@@ -1594,7 +1620,7 @@ export async function POST(req: NextRequest) {
     if (emergencyAdvice) {
       return NextResponse.json({
         success: true,
-        message: "Canh bao trieu chung nguy hiem",
+        message: "Cảnh báo triệu chứng nguy hiểm",
         data: { answer: emergencyAdvice },
       });
     }
@@ -1604,7 +1630,7 @@ export async function POST(req: NextRequest) {
     if (faqAnswer) {
       return NextResponse.json({
         success: true,
-        message: "FAQ tra loi thanh cong",
+        message: "FAQ trả lời thành công",
         data: { answer: faqAnswer },
       });
     }
@@ -1613,7 +1639,7 @@ export async function POST(req: NextRequest) {
     if (exactExamAnswer) {
       return NextResponse.json({
         success: true,
-        message: "Tra cuu kham theo du lieu chinh xac thanh cong",
+        message: "Tra cứu khám theo dữ liệu chính xác thành công",
         data: { answer: exactExamAnswer },
       });
     }
@@ -1622,7 +1648,7 @@ export async function POST(req: NextRequest) {
     if (weeklyScheduleAnswer) {
       return NextResponse.json({
         success: true,
-        message: "Tra cuu lich kham trong tuan thanh cong",
+        message: "Tra cứu lịch khám trong tuần thành công",
         data: { answer: weeklyScheduleAnswer },
       });
     }
@@ -1632,7 +1658,7 @@ export async function POST(req: NextRequest) {
     if (directSpecialtyAnswer) {
       return NextResponse.json({
         success: true,
-        message: "Tra cuu khoa thanh cong",
+        message: "Tra cứu khoa thành công",
         data: { answer: directSpecialtyAnswer },
       });
     }
@@ -1641,7 +1667,7 @@ export async function POST(req: NextRequest) {
     if (directDoctorAnswer) {
       return NextResponse.json({
         success: true,
-        message: "Tra cuu bac si thanh cong",
+        message: "Tra cứu bác sĩ thành công",
         data: { answer: directDoctorAnswer },
       });
     }
@@ -1650,7 +1676,7 @@ export async function POST(req: NextRequest) {
     if (directScheduleAnswer) {
       return NextResponse.json({
         success: true,
-        message: "Tra cuu lich dich vu thanh cong",
+        message: "Tra cứu lịch dịch vụ thành công",
         data: { answer: directScheduleAnswer },
       });
     }
@@ -1660,7 +1686,7 @@ export async function POST(req: NextRequest) {
     if (directServiceAnswer) {
       return NextResponse.json({
         success: true,
-        message: "Tra cuu dich vu thanh cong",
+        message: "Tra cứu dịch vụ thành công",
         data: { answer: directServiceAnswer },
       });
     }
@@ -1670,7 +1696,7 @@ export async function POST(req: NextRequest) {
     if (symptomTriageAnswer) {
       return NextResponse.json({
         success: true,
-        message: "Tu van trieu chung thanh cong",
+        message: "Tư vấn triệu chứng thành công",
         data: { answer: symptomTriageAnswer },
       });
     }
@@ -1679,7 +1705,7 @@ export async function POST(req: NextRequest) {
     if (reminderAnswer) {
       return NextResponse.json({
         success: true,
-        message: "Tra cuu lich sap toi thanh cong",
+        message: "Tra cứu lịch sắp tới thành công",
         data: { answer: reminderAnswer },
       });
     }
@@ -1688,7 +1714,7 @@ export async function POST(req: NextRequest) {
     if (reviewAnswer) {
       return NextResponse.json({
         success: true,
-        message: "Tra cuu danh gia thanh cong",
+        message: "Tra cứu đánh giá thành công",
         data: { answer: reviewAnswer },
       });
     }
@@ -1697,7 +1723,7 @@ export async function POST(req: NextRequest) {
     if (contextAnswer) {
       return NextResponse.json({
         success: true,
-        message: "Goi y theo lich su thanh cong",
+        message: "Gợi ý theo lịch sử thành công",
         data: { answer: contextAnswer },
       });
     }
@@ -1706,39 +1732,39 @@ export async function POST(req: NextRequest) {
     const dbContext = await buildSpecialtyServiceContext();
     const serviceDoctorContext = await buildServiceDoctorContext();
     const defaultSystemPrompt = `
-Ban la tro ly AI ho tro benh nhan tren he thong dat lich kham.
+Bạn là trợ lý AI hỗ trợ bệnh nhân trên hệ thống đặt lịch khám.
 
-Quy tac:
-- Bat buoc tra loi 100% bang tieng Viet (khong dung tieng Anh, tru ten rieng/chuyen mon bat buoc).
-- Tra loi ngan gon, lich su, de hieu.
-- Khong chan doan benh, khong ke don thuoc.
-- Neu co dau hieu nguy hiem, khuyen nguoi dung den co so y te som.
-- Khong tu tao du lieu bac si, khoa, dich vu, gia tien neu khong co du lieu dau vao.
-- Neu thieu thong tin, hay noi ro can bo sung du lieu.
-- Neu nguoi dung hoi ve mot khoa:
-  + Mo ta ngan ve khoa do dua tren du lieu CSDL.
-  + Goi y cac dich vu thuoc khoa do (neu co).
-  + Ten dich vu phai de dang Markdown co link:
-    [Ten dich vu](/dich-vu/[service_id])
-  + Neu khong thay khoa phu hop, noi ro rang khong co du lieu khoa do.
-- Neu nguoi dung hoi ve mot dich vu:
-  + Mo ta ngan ve dich vu do dua tren du lieu CSDL.
-  + Cung cap danh sach bac si phu hop co trong he thong (neu co).
-  + Ten bac si phai de dang Markdown co link den trang chi tiet:
-    [Ten bac si](/bac-si/[doctor_id]?service_id=[service_id])
-  + Neu chua co bac si cho dich vu do, noi ro de nguoi dung biet.
-- Neu nguoi dung hoi thong tin mot bac si, uu tien tra loi dung mau:
-  TĂªn: ...
-  MĂ£ bĂ¡c sÄ©: ...
+Quy tắc:
+- Bắt buộc trả lời 100% bằng tiếng Việt có dấu, không dùng tiếng Việt không dấu.
+- Trả lời ngắn gọn, lịch sự, dễ hiểu.
+- Không chẩn đoán bệnh, không kê đơn thuốc.
+- Nếu có dấu hiệu nguy hiểm, khuyên người dùng đến cơ sở y tế sớm.
+- Không tự tạo dữ liệu bác sĩ, khoa, dịch vụ, giá tiền nếu không có dữ liệu đầu vào.
+- Nếu thiếu thông tin, hãy nói rõ cần bổ sung dữ liệu.
+- Nếu người dùng hỏi về một khoa:
+  + Mô tả ngắn về khoa đó dựa trên dữ liệu CSDL.
+  + Gợi ý các dịch vụ thuộc khoa đó nếu có.
+  + Tên dịch vụ phải để dạng Markdown có link:
+    [Tên dịch vụ](/dich-vu/[service_id])
+  + Nếu không thấy khoa phù hợp, nói rõ rằng không có dữ liệu khoa đó.
+- Nếu người dùng hỏi về một dịch vụ:
+  + Mô tả ngắn về dịch vụ đó dựa trên dữ liệu CSDL.
+  + Cung cấp danh sách bác sĩ phù hợp có trong hệ thống nếu có.
+  + Tên bác sĩ phải để dạng Markdown có link đến trang chi tiết:
+    [Tên bác sĩ](/bac-si/[doctor_id]?service_id=[service_id])
+  + Nếu chưa có bác sĩ cho dịch vụ đó, nói rõ để người dùng biết.
+- Nếu người dùng hỏi thông tin một bác sĩ, ưu tiên trả lời đúng mẫu:
+  Tên: ...
+  Mã bác sĩ: ...
   Khoa: ...
-  MĂ´ táº£: ...
-  Dá»‹ch vá»¥: ...
-- Khong dung ky tu ** trong cau tra loi.
+  Mô tả: ...
+  Dịch vụ: ...
+- Không dùng ký tự ** trong câu trả lời.
 
-Du lieu khoa va dich vu tu CSDL (chi duoc dung trong phien tra loi hien tai):
+Dữ liệu khoa và dịch vụ từ CSDL (chỉ được dùng trong phiên trả lời hiện tại):
 ${dbContext}
 
-Du lieu dich vu va bac si tu CSDL (chi duoc dung trong phien tra loi hien tai):
+Dữ liệu dịch vụ và bác sĩ từ CSDL (chỉ được dùng trong phiên trả lời hiện tại):
 ${serviceDoctorContext}
 `;
     const systemPrompt = process.env.AI_CHAT_SYSTEM_PROMPT?.trim() || defaultSystemPrompt;
@@ -1786,11 +1812,11 @@ ${serviceDoctorContext}
 
     if (!response.ok) {
       const fallbackLinks = [
-        "He thong AI tam thoi ban. Ban co the thao tac nhanh:",
-        "- [Tim bac si/dich vu](/dich-vu)",
-        "- [Xem danh sach chuyen khoa](/chuyen-khoa)",
-        "- [Quan ly lich hen cua toi](/patient/appointments)",
-        "- [Gui yeu cau ho tro admin](/ho-tro/admin)",
+        "Hệ thống AI tạm thời bận. Bạn có thể thao tác nhanh:",
+        "- [Tìm bác sĩ/dịch vụ](/dich-vu)",
+        "- [Xem danh sách chuyên khoa](/chuyen-khoa)",
+        "- [Quản lý lịch hẹn của tôi](/patient/appointments)",
+        "- [Gửi yêu cầu hỗ trợ admin](/ho-tro/admin)",
       ].join("\n");
       return NextResponse.json(
         {
@@ -1804,26 +1830,26 @@ ${serviceDoctorContext}
     const answer = extractGeminiAnswer(payload);
     if (!answer) {
       return NextResponse.json(
-        { success: false, message: "Khong nhan duoc phan hoi tu AI" },
+        { success: false, message: "Không nhận được phản hồi từ AI" },
         { status: 502 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: "AI phan hoi thanh cong",
+      message: "AI phản hồi thành công",
       data: { answer },
     });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       return NextResponse.json(
-        { success: false, message: "AI phan hoi qua lau, vui long thu lai" },
+        { success: false, message: "AI phản hồi quá lâu, vui lòng thử lại" },
         { status: 504 }
       );
     }
 
     return NextResponse.json(
-      { success: false, message: "Loi server" },
+      { success: false, message: "Lỗi server" },
       { status: 500 }
     );
   }

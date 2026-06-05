@@ -54,7 +54,8 @@ export async function GET(req: NextRequest) {
       message: "Lay thong bao thanh cong",
       data: rows,
     });
-  } catch {
+  } catch (error) {
+    console.error("GET /api/notifications failed:", error);
     return NextResponse.json(
       { success: false, message: "Loi server" },
       { status: 500 }
@@ -86,7 +87,8 @@ export async function PATCH(req: NextRequest) {
       message: "Danh dau da doc thanh cong",
       data: { affected_rows: result.affectedRows },
     });
-  } catch {
+  } catch (error) {
+    console.error("PATCH /api/notifications failed:", error);
     return NextResponse.json(
       { success: false, message: "Loi server" },
       { status: 500 }

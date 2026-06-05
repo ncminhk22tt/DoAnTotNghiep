@@ -21,6 +21,8 @@ type Doctor = {
   avatar: string | null;
   specialty_id: number | null;
   specialty_name: string | null;
+  specialty_names_csv?: string | null;
+  service_names_csv?: string | null;
   experience: number | null;
   description: string | null;
   rating_avg?: number | null;
@@ -53,6 +55,18 @@ function toPositiveInt(raw: string | null) {
   const value = Number(raw);
   if (!Number.isFinite(value) || value <= 0) return 0;
   return Math.floor(value);
+}
+
+function splitCsvValues(raw?: string | null) {
+  if (!raw) return [];
+  return raw
+    .split("|||")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function joinLabelValues(values: string[], fallback: string) {
+  return values.length > 0 ? values.join(", ") : fallback;
 }
 
 export default function DoctorListingPage() {
@@ -139,6 +153,16 @@ export default function DoctorListingPage() {
     });
   }, [doctors, keyword, specialtyId]);
 
+  const getDoctorSpecialties = (doctor: Doctor) => {
+    const specialties = splitCsvValues(doctor.specialty_names_csv);
+    return joinLabelValues(specialties, doctor.specialty_name || "Chua co chuyen khoa");
+  };
+
+  const getDoctorServices = (doctor: Doctor) => {
+    const servicesList = splitCsvValues(doctor.service_names_csv);
+    return joinLabelValues(servicesList, "Chua co dich vu");
+  };
+
   function goToBookingByDoctor(doctor: Doctor) {
     if (!doctor.specialty_id || !doctor.specialty_name) {
       showToast("Bac si chua duoc gan chuyen khoa de dat lich.", "error");
@@ -163,17 +187,17 @@ export default function DoctorListingPage() {
           <Breadcrumbs
             items={[
               { label: "Trang chu", href: "/", home: true },
-              { label: "Bac si" },
+              { label: "Bác sĩ" },
             ]}
           />
           <h1 className={styles.title}>Danh sách bác sĩ danh cho ban</h1>
-          <p className={styles.sub}>Chon bác sĩ phù hợp va chuyển đến trang đặt lịch.</p>
+          <p className={styles.sub}>Chọn bác sĩ phù hợp va chuyển đến trang đặt lịch.</p>
           <div className={styles.filters}>
             <input
               className={styles.control}
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Tim ten bac si, ma bac si..."
+              placeholder="Tìm tên bác sĩ, mã bác sĩ..."
             />
             <select
               className={styles.control}
@@ -204,9 +228,9 @@ export default function DoctorListingPage() {
 
         <section className={styles.section}>
           {loading ? (
-            <p className={styles.empty}>Dang tai danh sach bac si...</p>
+            <p className={styles.empty}>Đang tải danh sách bác sĩ...</p>
           ) : filteredDoctors.length === 0 ? (
-            <p className={styles.empty}>Khong co bac si phu hop bo loc.</p>
+            <p className={styles.empty}>Không có bác sĩ phù hợp với bộ lọc.</p>
           ) : (
             <div className={styles.grid}>
               {filteredDoctors.map((d) => (
@@ -220,19 +244,19 @@ export default function DoctorListingPage() {
                     }}
                   />
                   <div className={styles.cardBody}>
-                    <h3 className={styles.cardTitle}>{d.full_name}</h3>
+                    <h3 className={styles.cardTitle}>
+                      {d.full_name} | {d.doctor_code ? d.doctor_code : "Chưa có mã bác sĩ"}
+                    </h3>
                     <p className={styles.cardMeta}>
-                      {d.specialty_name || "Chua co chuyen khoa"} {d.doctor_code ? `| ${d.doctor_code}` : ""}
-                    </p>
-                    <p className={styles.cardDesc}>
-                      {typeof d.experience === "number"
-                        ? `${d.experience} nam kinh nghiem`
-                        : "Bac si chuyen khoa"}
+                      Chuyên khoa: {getDoctorSpecialties(d)}
                     </p>
                     <p className={styles.cardMeta}>
-                      Danh gia: {Number(d.rating_avg || 0).toFixed(1)} ({d.rating_count || 0})
+                      Dịch vụ: {getDoctorServices(d)}
                     </p>
-                    <span className={styles.cardCta}>Dat lich voi bac si nay</span>
+                    <p className={styles.cardMeta}>
+                      Đánh giá: {Number(d.rating_avg || 0).toFixed(1)} ({d.rating_count || 0})
+                    </p>
+                    <span className={styles.cardCta}>Đặt lịch với bác sĩ này</span>
                   </div>
                 </button>
               ))}

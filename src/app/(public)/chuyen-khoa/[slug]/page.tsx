@@ -121,6 +121,14 @@ function todayYMD() {
   return `${d.getFullYear()}-${m}-${day}`;
 }
 
+function formatDisplayDate(value: string | null) {
+  if (!value) return "-";
+  const datePart = value.includes("T") ? value.slice(0, 10) : value;
+  const [year, month, day] = datePart.split("-");
+  if (!year || !month || !day) return value;
+  return `${day}-${month}-${year}`;
+}
+
 function resolveAvatarSrc(avatar: string | null) {
   return resolveSafeImageSrc(avatar, DOCTOR_AVATAR_PLACEHOLDER);
 }
@@ -479,7 +487,6 @@ export default function SpecialtyDetailPage({
     loadDoctorDetail(selectedDoctorId).catch(() => setDoctorDetail(null));
   }, [selectedDoctorId]);
 
-  const availableSlots = useMemo(() => slots.filter((s) => s.status === "available"), [slots]);
   const selectedSlot = useMemo(() => slots.find((s) => s.id === selectedSlotId) || null, [slots, selectedSlotId]);
   const selectedService = useMemo(
     () => services.find((s) => s.id === selectedServiceId) || null,
@@ -547,6 +554,8 @@ export default function SpecialtyDetailPage({
       (slot) => slot.start_time >= currentRange.start && slot.end_time <= currentRange.end
     );
   }, [slots, selectedTimeRangeKey, timeRangeOptions]);
+  const displayPrice =
+    selectedSlot?.price ?? visibleSlots[0]?.price ?? null;
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
@@ -677,7 +686,7 @@ export default function SpecialtyDetailPage({
               </select>
             </div>
             <div className={styles.headerRow}>
-              <h3 className={styles.dateTitle}>{workDate}</h3>
+              <h3 className={styles.dateTitle}>{formatDisplayDate(workDate)}</h3>
               <input className={styles.dateInput} type="date" value={workDate} onChange={(e) => setWorkDate(e.target.value)} />
             </div>
             <p className={styles.label}>Lịch khám</p>
@@ -702,13 +711,15 @@ export default function SpecialtyDetailPage({
                 );
               })}
               {visibleSlots.length === 0 && (
-                <div className={styles.descText}>Không có lịch khám phù hợp bộ lọc.</div>
+                <div className={`${styles.descText} ${styles.emptySlotText}`}>
+                  Không có lịch khám phù hợp bộ lọc.
+                </div>
               )}
             </div>
 
             <div className={styles.divider} />
             <p className={styles.descText}>
-              Giá khám: {Number(selectedSlot?.price || visibleSlots[0]?.price || availableSlots[0]?.price || 0).toLocaleString("vi-VN")}đ
+              Giá khám: {displayPrice === null ? "Không có" : `${Number(displayPrice).toLocaleString("vi-VN")}đ`}
             </p>
 
             <button className={styles.bookBtn} onClick={handleOpenBookingForm} disabled={submitting}>

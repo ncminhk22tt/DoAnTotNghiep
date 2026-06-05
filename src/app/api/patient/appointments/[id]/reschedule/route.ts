@@ -20,6 +20,7 @@ interface AppointmentRow extends RowDataPacket {
   slot_id: number | null;
   doctor_id: number | null;
   status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
+  admin_note: string | null;
 }
 
 interface SlotRow extends RowDataPacket {
@@ -94,7 +95,7 @@ export async function PATCH(
     await connection.beginTransaction();
 
     const [appointmentRows] = await connection.execute<AppointmentRow[]>(
-      `SELECT id, user_id, slot_id, doctor_id, status
+      `SELECT id, user_id, slot_id, doctor_id, status, admin_note
        FROM appointments
        WHERE id = ?
        FOR UPDATE`,
@@ -120,6 +121,13 @@ export async function PATCH(
       await connection.rollback();
       return NextResponse.json(
         { success: false, message: "Chi doi duoc lich dang cho xac nhan hoac da xac nhan" },
+        { status: 400 }
+      );
+    }
+    if ((appointment.admin_note || "").includes("[Yeu cau doi lich]")) {
+      await connection.rollback();
+      return NextResponse.json(
+        { success: false, message: "Lich hen nay da doi lich mot lan, khong the doi them." },
         { status: 400 }
       );
     }

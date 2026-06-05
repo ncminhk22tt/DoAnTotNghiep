@@ -45,7 +45,8 @@ export async function GET(
       success: true,
       data: rows,
     });
-  } catch {
+  } catch (error) {
+    console.error("GET /api/public/doctors/[id]/schedule failed:", error);
     return NextResponse.json(
       { success: false, message: "Loi server" },
       { status: 500 }

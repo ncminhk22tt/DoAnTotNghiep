@@ -103,7 +103,8 @@ export async function GET(
         services: serviceRows,
       },
     });
-  } catch {
+  } catch (error) {
+    console.error("GET /api/public/doctors/[id] failed:", error);
     return NextResponse.json(
       { success: false, message: "Loi server" },
       { status: 500 }

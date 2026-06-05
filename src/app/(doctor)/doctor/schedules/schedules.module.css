@@ -2,6 +2,26 @@
   color: #0f172a;
 }
 
+.modeSwitchWrap {
+  position: sticky;
+  top: 0;
+  z-index: 70;
+  background: #ffffff;
+  padding: 10px 0;
+}
+
+.filterCard {
+  position: sticky;
+  top: 62px;
+  z-index: 60;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+.listContainer {
+  position: relative;
+  z-index: 1;
+}
+
 .title {
   margin: 0 0 12px;
 }

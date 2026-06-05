@@ -153,13 +153,13 @@ export default function ServiceListingPage() {
             <Breadcrumbs
               items={[
                 { label: "Trang chu", href: "/", home: true },
-                { label: "Dich vu" },
+                { label: "Dịch vụ" },
               ]}
             />
           </div>
-          <h1 className={styles.title}>Danh sach dich vu kham</h1>
+          <h1 className={styles.title}>Danh sách dịch vụ khám</h1>
           <p className={styles.sub}>
-            Loc theo khoa va dich vu. Cac dich vu cung khoa duoc nhom trong cung mot khung.
+            Lọc theo khoa và dịch vụ. Các dịch vụ cùng khoa được nhóm trong cùng một khung.
           </p>
 
           <div className={styles.filters}>
@@ -171,7 +171,7 @@ export default function ServiceListingPage() {
                 className={styles.control}
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                placeholder="Tim ten dich vu, chuyen khoa..."
+                placeholder="Tìm tên dịch vụ, chuyên khoa..."
               />
             </div>
             <div className={styles.selectWrapper}>
@@ -180,7 +180,7 @@ export default function ServiceListingPage() {
                 value={selectedSpecialtyId}
                 onChange={(e) => setSelectedSpecialtyId(Number(e.target.value))}
               >
-                <option value={0}>Tat ca chuyen khoa</option>
+                <option value={0}>Tất cả chuyên khoa</option>
                 {specialties.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -197,7 +197,7 @@ export default function ServiceListingPage() {
                 value={selectedServiceId}
                 onChange={(e) => setSelectedServiceId(Number(e.target.value))}
               >
-                <option value={0}>Tat ca dich vu</option>
+                <option value={0}>Tất cả dịch vụ</option>
                 {visibleServicesInFilter.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -215,7 +215,7 @@ export default function ServiceListingPage() {
           {loading ? (
             <div className={styles.loadingWrapper}>
               <div className={styles.spinner}></div>
-              <p className={styles.empty}>Dang tai danh sach dich vu...</p>
+              <p className={styles.empty}>Đang tải danh sách dịch vụ...</p>
             </div>
           ) : null}
           {!loading && serviceGroups.length === 0 ? (
@@ -224,14 +224,14 @@ export default function ServiceListingPage() {
                 <circle cx="32" cy="32" r="30" stroke="currentColor" strokeWidth="2" opacity="0.2"/>
                 <path d="M32 20v16M32 44h.02" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
               </svg>
-              <p className={styles.empty}>Khong co dich vu phu hop bo loc hien tai.</p>
+              <p className={styles.empty}>Không có dịch vụ phù hợp với bộ lọc hiện tại.</p>
             </div>
           ) : null}
 
           {!loading && serviceGroups.length > 0 ? (
             <>
               <p className={styles.summary}>
-                Tim thay {totalVisibleServices} dich vu trong {serviceGroups.length} khoa.
+                Có {totalVisibleServices} dịch vụ trong {serviceGroups.length} khoa.
               </p>
 
               <div className={styles.groupList}>
@@ -253,7 +253,7 @@ export default function ServiceListingPage() {
                           {group.specialtyDescription || "Danh sach dich vu thuoc khoa nay."}
                         </p>
                       </div>
-                      <span className={styles.groupCount}>{group.services.length} dich vu</span>
+                      <span className={styles.groupCount}>{group.services.length} dịch vụ</span>
                     </div>
 
                     <div className={styles.serviceGrid}>
@@ -275,9 +275,9 @@ export default function ServiceListingPage() {
                           <div className={styles.serviceContent}>
                             <p className={styles.serviceName}>{service.name}</p>
                             <p className={styles.serviceDesc}>
-                              {service.description || "Dich vu kham theo chuyen khoa."}
+                              {service.description || "Dịch vụ khám theo chuyên khoa."}
                             </p>
-                            <span className={styles.serviceCta}>Xem lich kham</span>
+                            <span className={styles.serviceCta}>Xem lịch khám</span>
                           </div>
                         </button>
                       ))}

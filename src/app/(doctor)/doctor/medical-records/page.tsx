@@ -142,6 +142,10 @@ function formatSchedule(row: MedicalRecordRow) {
 
 function formatDisplayDate(date: string | null) {
   if (!date) return "-";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [year, month, day] = date.split("-");
+    return `${day}-${month}-${year}`;
+  }
   const parsed = new Date(date);
   if (Number.isNaN(parsed.getTime())) return date;
   const day = String(parsed.getDate()).padStart(2, "0");
@@ -150,10 +154,29 @@ function formatDisplayDate(date: string | null) {
   return `${day}-${month}-${year}`;
 }
 
+function formatDisplayDateTime(value: string | null) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(parsed);
+  const time = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(parsed);
+
+  return `${formatDisplayDate(date)} ${time}`;
+}
+
 function formatRevisionLabel(createdAt: string, idx: number) {
-  const date = new Date(createdAt);
-  const d = Number.isNaN(date.getTime()) ? createdAt : date.toLocaleString("vi-VN");
-  return `Lần sửa ${idx + 1} - ${d}`;
+  return `Lần sửa ${idx + 1} - ${formatDisplayDateTime(createdAt)}`;
 }
 
 function validatePrescriptionItems(items: EditablePrescriptionInput[]) {

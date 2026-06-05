@@ -41,12 +41,15 @@ function toYMD(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function formatDisplayDate(value: string): string {
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+  return `${day}-${month}-${year}`;
+}
+
 function dayLabel(date: Date): string {
-  return new Intl.DateTimeFormat("vi-VN", {
-    weekday: "long",
-    day: "2-digit",
-    month: "2-digit",
-  }).format(date);
+  const weekday = new Intl.DateTimeFormat("vi-VN", { weekday: "long" }).format(date);
+  return `${weekday}, ${formatDisplayDate(toYMD(date))}`;
 }
 
 function next7Days(): Array<{ date: string; dayLabel: string }> {
@@ -157,7 +160,7 @@ export default function DoctorPublicDetailPage() {
         {weekSchedules.map((day) => (
           <article className={styles.dayCard} key={day.date}>
             <p className={styles.dayName}>
-              {day.dayLabel} ({day.date})
+              {day.dayLabel}
             </p>
             {day.slots.length === 0 ? (
               <p className={styles.empty}>Khong co lich.</p>
@@ -184,4 +187,3 @@ export default function DoctorPublicDetailPage() {
     </div>
   );
 }
-

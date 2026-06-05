@@ -29,6 +29,28 @@ function allNotificationsPathByRole(role: AuthUser["role"]) {
   return "/admin";
 }
 
+function formatDisplayDateTime(value: string | null) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(parsed);
+  const [year, month, day] = date.split("-");
+  const time = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(parsed);
+
+  return `${day}-${month}-${year} ${time}`;
+}
+
 type NotificationBellProps = {
   user: AuthUser | null;
   showLabel?: boolean;
@@ -150,7 +172,7 @@ export function NotificationBell({ user, showLabel = false }: NotificationBellPr
                   onClick={() => handleClickItem(item)}
                 >
                   <div className={styles.message}>{item.message}</div>
-                  <div className={styles.time}>{item.created_at}</div>
+                  <div className={styles.time}>{formatDisplayDateTime(item.created_at)}</div>
                 </button>
               ))}
           </div>

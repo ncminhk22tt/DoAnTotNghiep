@@ -198,6 +198,11 @@
   color: #334155;
 }
 
+.emptySlotText {
+  grid-column: 1 / -1;
+  white-space: nowrap;
+}
+
 .divider {
   height: 1px;
   background: #e5e7eb;

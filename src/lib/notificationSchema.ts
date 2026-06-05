@@ -13,10 +13,15 @@ export async function getNotificationActionUrlReady() {
   if (loadingPromise) return loadingPromise;
 
   loadingPromise = (async () => {
-    const [rows] = await db.execute<ColumnRow[]>("SHOW COLUMNS FROM notifications");
-    const fields = new Set(rows.map((r) => r.Field));
-    actionUrlReadyCache = fields.has("action_url");
-    return actionUrlReadyCache;
+    try {
+      const [rows] = await db.execute<ColumnRow[]>("SHOW COLUMNS FROM notifications");
+      const fields = new Set(rows.map((r) => r.Field));
+      actionUrlReadyCache = fields.has("action_url");
+      return actionUrlReadyCache;
+    } catch {
+      actionUrlReadyCache = false;
+      return false;
+    }
   })();
 
   try {

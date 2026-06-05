@@ -93,7 +93,8 @@ export async function GET(req: NextRequest) {
       message: "Lấy danh sách lịch hẹn thành công",
       data: rows,
     });
-  } catch {
+  } catch (error) {
+    console.error("GET /api/doctor/appointments failed:", error);
     return NextResponse.json({ success: false, message: "Lỗi server" }, { status: 500 });
   }
 }

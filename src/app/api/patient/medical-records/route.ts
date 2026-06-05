@@ -50,6 +50,29 @@ interface FileRow extends RowDataPacket {
   created_at: string;
 }
 
+interface RevisionPrescriptionRow extends RowDataPacket {
+  medical_record_id: number;
+  prescription_json: string | null;
+}
+
+function parsePrescriptionJson(raw: string | null) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item, index) => ({
+        id: -(index + 1),
+        medicine_name: typeof item?.medicine_name === "string" ? item.medicine_name : "",
+        dosage: typeof item?.dosage === "string" ? item.dosage : "",
+        duration: typeof item?.duration === "string" ? item.duration : "",
+      }))
+      .filter((item) => item.medicine_name || item.dosage || item.duration);
+  } catch {
+    return [];
+  }
+}
+
 // GET /api/patient/medical-records
 // Bệnh nhân xem lịch sử khám: chẩn đoán + đơn thuốc + file đính kèm.
 export async function GET(req: NextRequest) {
@@ -119,6 +142,20 @@ export async function GET(req: NextRequest) {
       medicalRecordIds
     );
 
+    const [revisionPrescriptionRows] = await db.execute<RevisionPrescriptionRow[]>(
+      `SELECT r.medical_record_id, r.prescription_json
+       FROM medical_record_revisions r
+       JOIN (
+         SELECT medical_record_id, MAX(id) AS max_id
+         FROM medical_record_revisions
+         WHERE medical_record_id IN (${placeholders})
+           AND prescription_json IS NOT NULL
+           AND prescription_json <> '[]'
+         GROUP BY medical_record_id
+       ) latest ON latest.max_id = r.id`,
+      medicalRecordIds
+    );
+
     const prescriptionMap = new Map<
       number,
       Array<{
@@ -167,6 +204,14 @@ export async function GET(req: NextRequest) {
       fileMap.set(row.medical_record_id, current);
     }
 
+    const revisionPrescriptionMap = new Map<number, ReturnType<typeof parsePrescriptionJson>>();
+    for (const row of revisionPrescriptionRows) {
+      const items = parsePrescriptionJson(row.prescription_json);
+      if (items.length > 0) {
+        revisionPrescriptionMap.set(row.medical_record_id, items);
+      }
+    }
+
     const data = recordRows.map((row) => ({
       medical_record: {
         id: row.medical_record_id,
@@ -206,7 +251,18 @@ export async function GET(req: NextRequest) {
         rating: row.review_rating,
         comment: row.review_comment,
       },
-      prescriptions: prescriptionMap.get(row.medical_record_id) ?? [],
+      prescriptions:
+        prescriptionMap.get(row.medical_record_id)?.some((prescription) => prescription.items.length > 0)
+          ? prescriptionMap.get(row.medical_record_id) ?? []
+          : revisionPrescriptionMap.has(row.medical_record_id)
+            ? [
+                {
+                  id: 0,
+                  medical_record_id: row.medical_record_id,
+                  items: revisionPrescriptionMap.get(row.medical_record_id) ?? [],
+                },
+              ]
+            : [],
       files: fileMap.get(row.medical_record_id) ?? [],
     }));
 

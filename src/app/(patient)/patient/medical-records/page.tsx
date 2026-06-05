@@ -81,6 +81,17 @@ type BookingMeta = {
   reason: string | null;
 };
 
+function normalizeBookingNote(note: string | null): string {
+  if (!note) return "";
+  return note
+    .replace(/\[Thong tin dat lich\]\s*\n?/gi, "")
+    .replace(/Ho va ten:/gi, "Họ và tên:")
+    .replace(/So dien thoai:/gi, "Số điện thoại:")
+    .replace(/Gioi tinh:/gi, "Giới tính:")
+    .replace(/Nam sinh:/gi, "Năm sinh:")
+    .replace(/Ly do kham:/gi, "Lý do khám:");
+}
+
 function parseBookingMeta(note: string | null): BookingMeta {
   const empty: BookingMeta = {
     full_name: null,
@@ -89,27 +100,57 @@ function parseBookingMeta(note: string | null): BookingMeta {
     birth_year: null,
     reason: null,
   };
-  if (!note) return empty;
+  const text = normalizeBookingNote(note);
+  if (!text) return empty;
 
-  const lines = note
+  const lines = text
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
 
-  const read = (prefix: string) => {
-    const found = lines.find((line) => line.toLowerCase().startsWith(prefix.toLowerCase()));
+  const read = (prefixes: string[]) => {
+    const found = lines.find((line) =>
+      prefixes.some((prefix) => line.toLowerCase().startsWith(prefix.toLowerCase()))
+    );
     if (!found) return null;
-    const value = found.slice(prefix.length).trim();
+    const matchedPrefix = prefixes.find((prefix) => found.toLowerCase().startsWith(prefix.toLowerCase())) || prefixes[0];
+    const value = found.slice(matchedPrefix.length).trim();
     return value || null;
   };
 
   return {
-    full_name: read("Ho va ten:"),
-    phone: read("So dien thoai:"),
-    gender: read("Gioi tinh:"),
-    birth_year: read("Nam sinh:"),
-    reason: read("Ly do kham:"),
+    full_name: read(["Họ và tên:", "Ho va ten:"]),
+    phone: read(["Số điện thoại:", "So dien thoai:"]),
+    gender: normalizeGenderLabel(read(["Giới tính:", "Gioi tinh:"])),
+    birth_year: read(["Năm sinh:", "Nam sinh:"]),
+    reason: read(["Lý do khám:", "Ly do kham:"]),
   };
+}
+
+function normalizeGenderLabel(value: string | null): string | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (["nu", "nữ", "female", "f"].includes(normalized)) return "Nữ";
+  if (["nam", "male", "m"].includes(normalized)) return "Nam";
+  return value.trim();
+}
+
+function formatDoctorName(item: MedicalRecordItem): string {
+  if (item.doctor.full_name && item.doctor.full_name.trim()) return item.doctor.full_name;
+  if (item.doctor.id) return `Bác sĩ #${item.doctor.id}`;
+  return "Đang cập nhật";
+}
+
+function formatDoctorCode(item: MedicalRecordItem): string {
+  if (item.doctor.code && item.doctor.code.trim()) return item.doctor.code;
+  if (item.doctor.id) return `#${item.doctor.id}`;
+  return "Đang cập nhật";
+}
+
+function formatDoctorPhone(item: MedicalRecordItem): string {
+  if (item.doctor.phone && item.doctor.phone.trim()) return item.doctor.phone;
+  return "Đang cập nhật";
 }
 
 function statusLabel(status: AppointmentStatus) {
@@ -128,24 +169,54 @@ function statusClass(status: AppointmentStatus) {
   return styles.statusCancelled;
 }
 
-function formatSchedule(item: MedicalRecordItem) {
-  const rawDate = item.appointment.work_date || "";
-  let date = "-";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
-    date = rawDate;
-  } else if (rawDate) {
-    const parsed = new Date(rawDate);
-    if (!Number.isNaN(parsed.getTime())) {
-      date = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Ho_Chi_Minh",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(parsed);
-    } else {
-      date = rawDate.slice(0, 10);
-    }
+function normalizeDate(value: string | null): string {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(parsed);
   }
+
+  return value.slice(0, 10);
+}
+
+function formatDisplayDate(value: string | null): string {
+  const normalized = normalizeDate(value);
+  if (!normalized) return "-";
+  const [year, month, day] = normalized.split("-");
+  if (!year || !month || !day) return normalized;
+  return `${day}-${month}-${year}`;
+}
+
+function formatDisplayDateTime(value: string | null): string {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(parsed);
+  const time = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(parsed);
+
+  return `${formatDisplayDate(date)} ${time}`;
+}
+
+function formatSchedule(item: MedicalRecordItem) {
+  const date = formatDisplayDate(item.appointment.work_date);
   const start = item.appointment.start_time ? item.appointment.start_time.slice(0, 5) : "--:--";
   const end = item.appointment.end_time ? item.appointment.end_time.slice(0, 5) : "--:--";
   return `${date} (${start} - ${end})`;
@@ -357,22 +428,22 @@ export default function PatientMedicalRecordsPage() {
                       <div className={styles.infoBoxDoctor}>
                         <div className={styles.infoBoxTitle}>Thông tin bác sĩ</div>
                         <div className={styles.headerLine}>
-                          <strong>Bác sĩ:</strong> {item.doctor.full_name || "-"}
+                          <strong>Bác sĩ:</strong> {formatDoctorName(item)}
                         </div>
                         <div className={styles.headerLine}>
-                          <strong>Mã bác sĩ:</strong> {item.doctor.code || "-"}
+                          <strong>Mã bác sĩ:</strong> {formatDoctorCode(item)}
                         </div>
                         <div className={styles.headerLine}>
-                          <strong>Số điện thoại:</strong> {item.doctor.phone || "-"}
+                          <strong>Số điện thoại:</strong> {formatDoctorPhone(item)}
                         </div>
                         <div className={styles.headerLine}>
-                          <strong>Khoa:</strong> {item.specialty.name || "-"}
+                          <strong>Khoa:</strong> {item.specialty.name || "Đang cập nhật"}
                         </div>
                         <div className={styles.headerLine}>
-                          <strong>Dịch vụ:</strong> {item.service.name || "-"}
+                          <strong>Dịch vụ:</strong> {item.service.name || "Đang cập nhật"}
                         </div>
                         <div className={styles.headerLine}>
-                          <strong>Phòng:</strong> {item.appointment.room || "-"}
+                          <strong>Phòng:</strong> {item.appointment.room || "Đang cập nhật"}
                         </div>
                       </div>
                     </div>
@@ -415,7 +486,7 @@ export default function PatientMedicalRecordsPage() {
           <div className={styles.modalCard}>
             <h3 className={styles.modalTitle}>Chi tiết lịch sử khám</h3>
             <p className={styles.modalText}>
-              <strong>Lý do khám:</strong> {detailTarget.meta.reason || "-"}
+              <strong>Lý do khám:</strong> {detailTarget.meta.reason || "Chưa cập nhật"}
             </p>
             <p className={styles.modalText}>
               <strong>Chẩn đoán:</strong> {detailTarget.item.medical_record.diagnosis || "Chưa cập nhật"}
@@ -493,20 +564,31 @@ export default function PatientMedicalRecordsPage() {
               <div className={styles.revisionList}>
                 {revisionItems.map((r, idx) => (
                   <div key={`rev-${r.id}`} className={styles.revisionItem}>
-                    <div className={styles.revisionItemTitle}>Lần sửa {idx + 1} - {new Date(r.created_at).toLocaleString("vi-VN")}</div>
+                    <div className={styles.revisionItemTitle}>Lần sửa {idx + 1} - {formatDisplayDateTime(r.created_at)}</div>
                     <div><strong>Chẩn đoán:</strong> {r.diagnosis || "-"}</div>
                     <div><strong>Ghi chú:</strong> {r.notes || "-"}</div>
                     <div><strong>Thuốc:</strong></div>
                     {r.prescription_items.length === 0 ? (
                       <div>- Không có dữ liệu thuốc.</div>
                     ) : (
-                      <ul className={styles.drugList}>
-                        {r.prescription_items.map((d, i) => (
-                          <li key={`rev-drug-${r.id}-${i}`}>
-                            {d.medicine_name} | Liều: {d.dosage || "-"} | Thời gian dùng: {d.duration || "-"}
-                          </li>
-                        ))}
-                      </ul>
+                      <table className={styles.drugTable}>
+                        <thead>
+                          <tr>
+                            <th>Tên thuốc</th>
+                            <th>Liều dùng</th>
+                            <th>Thời gian dùng</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {r.prescription_items.map((d, i) => (
+                            <tr key={`rev-drug-${r.id}-${i}`}>
+                              <td>{d.medicine_name || "-"}</td>
+                              <td>{d.dosage || "-"}</td>
+                              <td>{d.duration || "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     )}
                   </div>
                 ))}

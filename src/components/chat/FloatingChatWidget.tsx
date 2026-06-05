@@ -26,6 +26,10 @@ type DoctorDetail = {
   specialty_name: string | null;
   experience: number | null;
   description: string | null;
+  services?: Array<{
+    service_id: number;
+    service_name: string;
+  }>;
 };
 
 type Slot = {
@@ -54,7 +58,7 @@ type DoctorLite = {
 const INITIAL_MESSAGE: ChatMessage = {
   role: "assistant",
   content:
-    "Xin chao, toi la tro ly AI cua phong kham. Ban co the dat cau hoi bat ky de duoc ho tro.",
+    "Xin chào, tôi là trợ lý AI của phòng khám. Bạn có thể đặt câu hỏi bất kỳ để được hỗ trợ.",
   createdAt: new Date().toISOString(),
 };
 
@@ -194,44 +198,109 @@ export function FloatingChatWidget() {
     return out;
   }
 
-  function buildTimeRanges(slots: Slot[]) {
-    if (!slots.length) return [] as Array<{ start: string; end: string }>;
+  function buildDisplayRanges(slots: Slot[]) {
+    if (!slots.length) return [] as Array<{ start: string; end: string; status: "available" | "full" }>;
     const sorted = [...slots].sort((a, b) => a.start_time.localeCompare(b.start_time));
-    const ranges: Array<{ start: string; end: string }> = [];
+    const ranges: Array<{ start: string; end: string; status: "available" | "full" }> = [];
     let start = sorted[0].start_time;
     let end = sorted[0].end_time;
+    let status = sorted[0].status === "available" ? "available" : "full";
     for (let i = 1; i < sorted.length; i += 1) {
       const current = sorted[i];
-      if (current.start_time === end) {
+      const currentStatus = current.status === "available" ? "available" : "full";
+      if (current.start_time === end && currentStatus === status) {
         end = current.end_time;
       } else {
-        ranges.push({ start, end });
+        ranges.push({ start, end, status });
         start = current.start_time;
         end = current.end_time;
+        status = currentStatus;
       }
     }
-    ranges.push({ start, end });
+    ranges.push({ start, end, status });
     return ranges;
   }
 
   function formatDateVi(ymd: string) {
+    const [year, month, day] = ymd.split("-");
+    if (!year || !month || !day) return ymd;
     const d = new Date(`${ymd}T00:00:00`);
-    return new Intl.DateTimeFormat("vi-VN", {
-      weekday: "short",
-      day: "2-digit",
+    const weekdayMap = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+    const weekday = weekdayMap[d.getDay()] || "Thứ";
+    return `${weekday}, ${day}-${month}-${year}`;
+  }
+
+  function slugifyVi(value: string) {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  function buildBookingHref(params: {
+    doctorId: number;
+    serviceId: number | null;
+    date?: string | null;
+    from?: string | null;
+    to?: string | null;
+    slotId?: number | null;
+    specialtyId?: number | null;
+    specialtyName?: string | null;
+  }) {
+    const specialtyId = params.specialtyId && params.specialtyId > 0 ? params.specialtyId : null;
+    const specialtyName = params.specialtyName?.trim() || "chuyen-khoa";
+    const base = specialtyId ? `/chuyen-khoa/${slugifyVi(specialtyName)}-s${specialtyId}` : "/chuyen-khoa";
+    const query = new URLSearchParams();
+    if (params.serviceId && params.serviceId > 0) query.set("service_id", String(params.serviceId));
+    query.set("doctor_id", String(params.doctorId));
+    if (params.date) query.set("date", params.date);
+    if (params.from) query.set("from", params.from);
+    if (params.to) query.set("to", params.to);
+    if (params.slotId && params.slotId > 0) query.set("slot_id", String(params.slotId));
+    const search = query.toString();
+    return search ? `${base}?${search}` : base;
+  }
+
+  function todayClinicYmd() {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
       month: "2-digit",
-    }).format(d);
+      day: "2-digit",
+    }).format(new Date());
+  }
+
+  function normalizeTime(value: string) {
+    return value.slice(0, 5);
+  }
+
+  function isPastClinicDate(date: string) {
+    return date < todayClinicYmd();
+  }
+
+  function isPastClinicSlot(date: string, endTime: string) {
+    if (isPastClinicDate(date)) return true;
+    const normalizedEnd = normalizeTime(endTime);
+    const slotEnd = new Date(`${date}T${normalizedEnd}:00+07:00`);
+    if (Number.isNaN(slotEnd.getTime())) return false;
+    return slotEnd.getTime() <= Date.now();
   }
 
   async function showDoctorScheduleInChat(doctorId: number, serviceId: number | null) {
     try {
-      setLoadingHint("Dang tim lich bac si...");
-      pushAssistantMessage("Dang tai thong tin bac si va lich kham...");
-      const detailRes = await apiClient.get<{ data: DoctorDetail }>(`/api/public/doctors/${doctorId}`);
-      const doctor = detailRes.data;
+      setLoadingHint("Đang tìm lịch bác sĩ...");
+      pushAssistantMessage("Đang tải thông tin bác sĩ và lịch khám...");
+      const [servicesResult, detailResult] = await Promise.allSettled([
+        apiClient.get<{ data: Service[] }>("/api/public/services"),
+        apiClient.get<{ data: DoctorDetail }>(`/api/public/doctors/${doctorId}`),
+      ]);
+
+      const doctor = detailResult.status === "fulfilled" ? detailResult.value.data : null;
       if (!doctor) throw new Error("Không tìm thấy thông tin bác sĩ.");
 
-      const schedules = await Promise.all(
+      const schedules = await Promise.allSettled(
         next7Dates().map(async (date) => {
           const params = new URLSearchParams();
           params.set("date", date);
@@ -242,28 +311,43 @@ export function FloatingChatWidget() {
       );
 
       const lines: string[] = [];
-      lines.push(`ten: ${doctor.full_name}${doctor.doctor_code ? ` (${doctor.doctor_code})` : ""}`);
-      lines.push(`khoa: ${doctor.specialty_name || "-"}`);
-      lines.push(`mo ta: ${doctor.description || "-"}`);
-      lines.push(`kinh nghiem: ${doctor.experience ? `${doctor.experience} nam` : "-"}`);
-      lines.push("Lich kham 7 ngay toi (bam vao khoang gio de xem chi tiet):");
+      const allServices = servicesResult.status === "fulfilled" ? servicesResult.value.data || [] : [];
+      const selectedService = serviceId ? allServices.find((service) => service.id === serviceId) || null : null;
+      const serviceText = selectedService?.name || doctor.services?.[0]?.service_name || "-";
+      const specialtyText = selectedService?.specialty_name || doctor.specialty_name || "-";
+      lines.push(`Tên: ${doctor.full_name}${doctor.doctor_code ? ` (${doctor.doctor_code})` : ""}`);
+      lines.push(`Khoa: ${specialtyText}`);
+      lines.push(`Dịch vụ: ${serviceText}`);
+      lines.push(`Mô tả: ${doctor.description || "-"}`);
+      lines.push("");
+      lines.push("Lịch khám 7 ngày tới (bấm vào khoảng giờ để đặt lịch):");
 
-      for (const item of schedules) {
-        const availableSlots = item.slots.filter((s) => s.status !== "closed");
-        if (!availableSlots.length) {
+      for (const result of schedules) {
+        if (result.status !== "fulfilled") continue;
+        const item = result.value;
+        const visibleSlots = item.slots
+          .filter((s) => s.status !== "closed" && !isPastClinicSlot(item.date, s.end_time))
+          .sort((a, b) => a.start_time.localeCompare(b.start_time));
+        if (!visibleSlots.length) {
           lines.push(`- ${formatDateVi(item.date)}: Không có lịch`);
           continue;
         }
-        const ranges = buildTimeRanges(availableSlots);
-        const links = ranges.map((r) => {
-          const params = new URLSearchParams();
-          params.set("date", item.date);
-          params.set("from", r.start.slice(0, 5));
-          params.set("to", r.end.slice(0, 5));
-          if (serviceId) params.set("service_id", String(serviceId));
-          return `[${r.start.slice(0, 5)}-${r.end.slice(0, 5)}](/lich/${doctorId}?${params.toString()})`;
-        });
-        lines.push(`- ${formatDateVi(item.date)}: ${links.join(" | ")}`);
+        const dayStart = visibleSlots[0].start_time.slice(0, 5);
+        const dayEnd = visibleSlots[visibleSlots.length - 1].end_time.slice(0, 5);
+        const hasAvailableSlot = visibleSlots.some((slot) => slot.status === "available");
+        const dayText = `${formatDateVi(item.date)}: ${dayStart}-${dayEnd}`;
+        if (hasAvailableSlot) {
+          const href = buildBookingHref({
+            doctorId,
+            serviceId,
+            date: item.date,
+            specialtyId: selectedService?.specialty_id || null,
+            specialtyName: selectedService?.specialty_name || doctor.specialty_name || null,
+          });
+          lines.push(`- [${dayText}](${href})`);
+        } else {
+          lines.push(`- ${dayText}`);
+        }
       }
 
       pushAssistantMessage(lines.join("\n"));
@@ -276,27 +360,51 @@ export function FloatingChatWidget() {
 
   async function showRangeDetailInChat(doctorId: number, date: string, from: string, to: string, serviceId: number | null) {
     try {
-      setLoadingHint("Dang kiem tra slot trong...");
-      pushAssistantMessage("Dang tai cac khung gio chi tiet...");
-      const params = new URLSearchParams();
-      params.set("date", date);
-      if (serviceId) params.set("service_id", String(serviceId));
+      setLoadingHint("Đang kiểm tra slot trống...");
+      pushAssistantMessage("Đang tải các khung giờ chi tiết...");
+      const [servicesResult, slotRes] = await Promise.all([
+        apiClient.get<{ data: Service[] }>("/api/public/services"),
+        apiClient.get<{ data: Slot[] }>(
+          `/api/public/doctors/${doctorId}/schedule?${new URLSearchParams({
+            date,
+            ...(serviceId ? { service_id: String(serviceId) } : {}),
+          }).toString()}`
+        ),
+      ]);
+      const allServices = servicesResult.data || [];
+      const selectedService = serviceId ? allServices.find((service) => service.id === serviceId) || null : null;
 
-      const slotRes = await apiClient.get<{ data: Slot[] }>(`/api/public/doctors/${doctorId}/schedule?${params.toString()}`);
       const selected = (slotRes.data || []).filter(
-        (s) => s.status !== "closed" && s.start_time.slice(0, 5) >= from && s.end_time.slice(0, 5) <= to
+        (s) =>
+          s.status !== "closed" &&
+          !isPastClinicSlot(date, s.end_time) &&
+          s.start_time.slice(0, 5) >= from &&
+          s.end_time.slice(0, 5) <= to
       );
 
       const lines: string[] = [];
-      lines.push(`Khung gio chi tiet ${formatDateVi(date)} (${from}-${to}):`);
+      lines.push(`Khung giờ chi tiết ${formatDateVi(date)} (${from}-${to}):`);
       if (!selected.length) {
         lines.push("Không có slot chi tiết trong khoảng giờ này.");
       } else {
-        for (const slot of selected) {
+        const displaySlots = [...selected].sort((a, b) => a.start_time.localeCompare(b.start_time));
+        for (const slot of displaySlots) {
+          const label = `${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`;
+          const display = `${formatDateVi(date)}: ${label}`;
           if (slot.status === "available") {
-            lines.push(`- [${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)} - Dat lich ngay](/dat-lich?slot_id=${slot.id})`);
+            const href = buildBookingHref({
+              doctorId,
+              serviceId,
+              date,
+              from: slot.start_time.slice(0, 5),
+              to: slot.end_time.slice(0, 5),
+              slotId: slot.id,
+              specialtyId: selectedService?.specialty_id || null,
+              specialtyName: selectedService?.specialty_name || null,
+            });
+            lines.push(`- [${display}](${href})`);
           } else {
-            lines.push(`- ${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)} (${slot.status})`);
+            lines.push(`- ${display} đã hết`);
           }
         }
       }
@@ -310,8 +418,8 @@ export function FloatingChatWidget() {
 
   async function showServiceInfoInChat(serviceId: number) {
     try {
-      setLoadingHint("Dang tai thong tin dich vu...");
-      pushAssistantMessage("Dang tai thong tin dich vu...");
+      setLoadingHint("Đang tải thông tin dịch vụ...");
+      pushAssistantMessage("Đang tải thông tin dịch vụ...");
       const servicesRes = await apiClient.get<{ data: Service[] }>("/api/public/services");
       const service = (servicesRes.data || []).find((x) => x.id === serviceId) || null;
       if (!service) throw new Error("Không tìm thấy dịch vụ này.");
@@ -319,13 +427,13 @@ export function FloatingChatWidget() {
       const doctorsRes = await apiClient.get<{ data: DoctorLite[] }>(`/api/public/doctors?service_id=${serviceId}`);
       const doctors = doctorsRes.data || [];
       const lines: string[] = [];
-      lines.push(`Thong tin dich vu: ${service.name}`);
+      lines.push(`Thông tin dịch vụ: ${service.name}`);
       lines.push(`Khoa: ${service.specialty_name || "-"}${service.specialty_id ? ` (ID ${service.specialty_id})` : ""}`);
-      if (service.description) lines.push(`Mo ta: ${service.description}`);
+      if (service.description) lines.push(`Mô tả: ${service.description}`);
       if (!doctors.length) {
-        lines.push("Hien chua co bac si cho dich vu nay.");
+        lines.push("Hiện chưa có bác sĩ cho dịch vụ này.");
       } else {
-        lines.push("Bac si phu hop:");
+        lines.push("Bác sĩ phù hợp:");
         for (const d of doctors.slice(0, 10)) {
           const link = `/bac-si/${d.doctor_id}?service_id=${serviceId}`;
           lines.push(`- [${d.full_name}](${link})`);
@@ -341,16 +449,16 @@ export function FloatingChatWidget() {
 
   async function showServiceAndDoctorScheduleInChat(serviceId: number, doctorId: number) {
     try {
-      setLoadingHint("Dang tai thong tin dich vu va lich kham...");
-      pushAssistantMessage("Dang tai thong tin dich vu va lich kham...");
+      setLoadingHint("Đang tải thông tin dịch vụ và lịch khám...");
+      pushAssistantMessage("Đang tải thông tin dịch vụ và lịch khám...");
 
       const servicesRes = await apiClient.get<{ data: Service[] }>("/api/public/services");
       const service = (servicesRes.data || []).find((x) => x.id === serviceId) || null;
-      if (!service) throw new Error("Khong tim thay dich vu nay.");
+      if (!service) throw new Error("Không tìm thấy dịch vụ này.");
 
       const detailRes = await apiClient.get<{ data: DoctorDetail }>(`/api/public/doctors/${doctorId}`);
       const doctor = detailRes.data;
-      if (!doctor) throw new Error("Khong tim thay thong tin bac si.");
+      if (!doctor) throw new Error("Không tìm thấy thông tin bác sĩ.");
 
       const schedules = await Promise.all(
         next7Dates().map(async (date) => {
@@ -363,32 +471,39 @@ export function FloatingChatWidget() {
       );
 
       const lines: string[] = [];
-      lines.push(`Dich vu kham: ${service.name}`);
-      lines.push(`Mo ta: ${service.description || "-"}`);
-      lines.push(`Lich kham trong tuan cua bac si ${doctor.full_name}:`);
+      lines.push(`Dịch vụ khám: ${service.name}`);
+      lines.push(`Mô tả: ${service.description || "-"}`);
+      lines.push(`Lịch khám trong tuần của bác sĩ ${doctor.full_name}:`);
 
       for (const item of schedules) {
-        const availableSlots = item.slots.filter((s) => s.status !== "closed");
-        if (!availableSlots.length) {
-          lines.push(`- ${formatDateVi(item.date)}: Hien tai chua co lich`);
+        const visibleSlots = item.slots
+          .filter((s) => s.status !== "closed" && !isPastClinicSlot(item.date, s.end_time))
+          .sort((a, b) => a.start_time.localeCompare(b.start_time));
+        if (!visibleSlots.length) {
+          lines.push(`- ${formatDateVi(item.date)}: Hiện tại chưa có lịch`);
           continue;
         }
-
-        const ranges = buildTimeRanges(availableSlots);
-        const links = ranges.map((r) => {
-          const params = new URLSearchParams();
-          params.set("date", item.date);
-          params.set("from", r.start.slice(0, 5));
-          params.set("to", r.end.slice(0, 5));
-          params.set("service_id", String(serviceId));
-          return `[${r.start.slice(0, 5)}-${r.end.slice(0, 5)}](/lich/${doctorId}?${params.toString()})`;
-        });
-        lines.push(`- ${formatDateVi(item.date)}: ${links.join(" | ")}`);
+        const dayStart = visibleSlots[0].start_time.slice(0, 5);
+        const dayEnd = visibleSlots[visibleSlots.length - 1].end_time.slice(0, 5);
+        const hasAvailableSlot = visibleSlots.some((slot) => slot.status === "available");
+        const dayText = `${formatDateVi(item.date)}: ${dayStart}-${dayEnd}`;
+        if (hasAvailableSlot) {
+          const href = buildBookingHref({
+            doctorId,
+            serviceId,
+            date: item.date,
+            specialtyId: service.specialty_id,
+            specialtyName: service.specialty_name || null,
+          });
+          lines.push(`- [${dayText}](${href})`);
+        } else {
+          lines.push(`- ${dayText}`);
+        }
       }
 
       pushAssistantMessage(lines.join("\n"));
     } catch (error) {
-      pushAssistantMessage(error instanceof Error ? error.message : "Khong the tai thong tin dich vu.");
+      pushAssistantMessage(error instanceof Error ? error.message : "Không thể tải thông tin dịch vụ.");
     } finally {
       setLoadingHint("");
     }
@@ -396,16 +511,16 @@ export function FloatingChatWidget() {
 
   async function bookAppointmentInChat(slotId: number) {
     try {
-      setLoadingHint("Dang dat lich...");
+      setLoadingHint("Đang đặt lịch...");
       const token = getAccessToken("patient");
       if (!token) {
       pushAssistantMessage("Vui lòng đăng nhập bệnh nhân để đặt lịch.");
         return;
       }
-      await apiClient.post("/api/patient/appointments", { slot_id: slotId, note: "Dat tu chatbox AI" }, token);
-      pushAssistantMessage("Dat lich thanh cong. Xem tai [/patient/appointments](/patient/appointments).");
+      await apiClient.post("/api/patient/appointments", { slot_id: slotId, note: "Đặt từ chatbox AI" }, token);
+      pushAssistantMessage("Đặt lịch thành công. Xem tại [/patient/appointments](/patient/appointments).");
     } catch (error) {
-      pushAssistantMessage(`Dat lich that bai: ${error instanceof Error ? error.message : "Loi he thong"}`);
+      pushAssistantMessage(`Đặt lịch thất bại: ${error instanceof Error ? error.message : "Lỗi hệ thống"}`);
     } finally {
       setLoadingHint("");
     }
@@ -414,7 +529,7 @@ export function FloatingChatWidget() {
   function showReviewOptionsInChat(appointmentId: number) {
     pushAssistantMessage(
       [
-        `Danh gia lich #${appointmentId}:`,
+        `Đánh giá lịch #${appointmentId}:`,
         `- [5 sao](/gui-danh-gia?appointment_id=${appointmentId}&rating=5)`,
         `- [4 sao](/gui-danh-gia?appointment_id=${appointmentId}&rating=4)`,
         `- [3 sao](/gui-danh-gia?appointment_id=${appointmentId}&rating=3)`,
@@ -426,16 +541,16 @@ export function FloatingChatWidget() {
 
   async function submitReviewInChat(appointmentId: number, rating: number) {
     try {
-      setLoadingHint("Dang gui danh gia...");
+      setLoadingHint("Đang gửi đánh giá...");
       const token = getAccessToken("patient");
       if (!token) {
-        pushAssistantMessage("Vui long dang nhap benh nhan de gui danh gia.");
+        pushAssistantMessage("Vui lòng đăng nhập bệnh nhân để gửi đánh giá.");
         return;
       }
       await apiClient.post("/api/patient/reviews", { appointment_id: appointmentId, rating, comment: null }, token);
-      pushAssistantMessage("Cam on ban. Danh gia da duoc ghi nhan thanh cong.");
+      pushAssistantMessage("Cảm ơn bạn. Đánh giá đã được ghi nhận thành công.");
     } catch (error) {
-      pushAssistantMessage(`Gui danh gia that bai: ${error instanceof Error ? error.message : "Loi he thong"}`);
+      pushAssistantMessage(`Gửi đánh giá thất bại: ${error instanceof Error ? error.message : "Lỗi hệ thống"}`);
     } finally {
       setLoadingHint("");
     }
@@ -443,16 +558,16 @@ export function FloatingChatWidget() {
 
   async function requestAdminSupport() {
     try {
-      setLoadingHint("Dang gui yeu cau ho tro...");
+      setLoadingHint("Đang gửi yêu cầu hỗ trợ...");
       const user = getAuthUser("patient");
       const token = getAccessToken("patient");
       if (!user || !token) {
-        pushAssistantMessage("Vui long dang nhap benh nhan de gui yeu cau ho tro.");
+        pushAssistantMessage("Vui lòng đăng nhập bệnh nhân để gửi yêu cầu hỗ trợ.");
         return;
       }
       const lastUserQuestion = [...messages].reverse().find((m) => m.role === "user")?.content || null;
-      await apiClient.post("/api/patient/support-request", { note: "Yeu cau tu chatbox", last_user_question: lastUserQuestion }, token);
-      pushAssistantMessage("Da gui yeu cau ho tro den admin. Vui long cho trong it phut.");
+      await apiClient.post("/api/patient/support-request", { note: "Yêu cầu từ chatbox", last_user_question: lastUserQuestion }, token);
+      pushAssistantMessage("Đã gửi yêu cầu hỗ trợ đến admin. Vui lòng chờ trong ít phút.");
     } catch (error) {
       pushAssistantMessage(error instanceof Error ? error.message : "Không thể gửi yêu cầu hỗ trợ.");
     } finally {
@@ -545,13 +660,13 @@ export function FloatingChatWidget() {
     if (!content || sending) return;
     pushUserMessage(content);
     setSending(true);
-    setLoadingHint("Dang phan tich cau hoi...");
+    setLoadingHint("Đang phân tích câu hỏi...");
 
     try {
       const user = getAuthUser("patient");
       const token = getAccessToken("patient");
       if (!user || !token) {
-        pushAssistantMessage("Ban can dang nhap tai khoan benh nhan de su dung chat AI.");
+        pushAssistantMessage("Bạn cần đăng nhập tài khoản bệnh nhân để sử dụng chat AI.");
         return;
       }
 
@@ -564,7 +679,7 @@ export function FloatingChatWidget() {
       const elapsed = Math.max(1, Math.round(performance.now() - started));
       setLastLatencyMs(elapsed);
 
-      const answer = res?.data?.answer?.trim() || "Xin loi, toi chua the tra loi luc nay. Vui long thu lai sau.";
+      const answer = res?.data?.answer?.trim() || "Xin lỗi, tôi chưa thể trả lời lúc này. Vui lòng thử lại sau.";
       pushAssistantMessage(answer);
       setConsecutiveFailures(0);
     } catch (error) {
@@ -573,7 +688,7 @@ export function FloatingChatWidget() {
       const nextFailures = consecutiveFailures + 1;
       setConsecutiveFailures(nextFailures);
       if (nextFailures >= 2) {
-        pushAssistantMessage("Neu can nhanh, bam [Gui yeu cau ho tro admin](/ho-tro/admin).");
+        pushAssistantMessage("Nếu cần nhanh, bấm [Gửi yêu cầu hỗ trợ admin](/ho-tro/admin).");
       }
     } finally {
       setSending(false);
@@ -607,7 +722,7 @@ export function FloatingChatWidget() {
         <section className={styles.panel}>
           <header className={styles.header}>
             <div>
-              <h3 className={styles.title}>Tro ly AI</h3>
+              <h3 className={styles.title}>Trợ lý AI</h3>
               <div className={styles.statusRow}>
                 <span className={styles.onlineDot} />
                 <span>Đang trực tuyến</span>
@@ -621,14 +736,14 @@ export function FloatingChatWidget() {
                 className={styles.reloadBtn}
                 onClick={reloadChatHistory}
                 disabled={sending}
-                aria-label="Tao moi doan chat"
-                title="Tao moi doan chat"
+                aria-label="Tạo mới đoạn chat"
+                title="Tạo mới đoạn chat"
               >
                 <span className={styles.reloadIcon} aria-hidden="true">
                   ↻
                 </span>
               </button>
-              <button type="button" className={styles.closeBtn} onClick={() => setOpen(false)} aria-label="Dong chat">
+              <button type="button" className={styles.closeBtn} onClick={() => setOpen(false)} aria-label="Đóng chat">
                 x
               </button>
             </div>
@@ -650,7 +765,7 @@ export function FloatingChatWidget() {
               <div className={styles.messageWrap}>
                 <div className={`${styles.bubble} ${styles.assistant}`}>
                   {loadingHint ? <div className={styles.loadingHint}>{loadingHint}</div> : null}
-                  <span className={styles.typingDots} aria-label="AI dang tra loi">
+                  <span className={styles.typingDots} aria-label="AI đang trả lời">
                     <span />
                     <span />
                     <span />
@@ -664,12 +779,12 @@ export function FloatingChatWidget() {
             <div className={styles.stickyActions}>
               {firstBookHref ? (
                 <button type="button" className={styles.stickyPrimary} onClick={() => void handleChatLinkClick(firstBookHref)}>
-                  Dat nhanh
+                  Đặt nhanh
                 </button>
               ) : null}
               {firstDoctorHref ? (
                 <button type="button" className={styles.stickySecondary} onClick={() => void handleChatLinkClick(firstDoctorHref)}>
-                  Xem bac si
+                  Xem bác sĩ
                 </button>
               ) : null}
             </div>
@@ -682,17 +797,17 @@ export function FloatingChatWidget() {
                 className={styles.input}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Nhap cau hoi..."
+                placeholder="Nhập câu hỏi..."
               />
               <button type="submit" className={styles.sendBtn} disabled={!canSend}>
-                {sending ? "Dang gui..." : "Gui"}
+                {sending ? "Đang gửi..." : "Gửi"}
               </button>
             </div>
           </form>
         </section>
       ) : null}
 
-      <button type="button" className={styles.fab} aria-label="Mo chatbox AI" onClick={() => setOpen((value) => !value)}>
+      <button type="button" className={styles.fab} aria-label="Mở chatbox AI" onClick={() => setOpen((value) => !value)}>
         AI
       </button>
     </div>

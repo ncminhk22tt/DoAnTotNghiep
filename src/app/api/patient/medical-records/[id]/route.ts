@@ -41,10 +41,32 @@ interface FileRow extends RowDataPacket {
   created_at: string;
 }
 
+interface RevisionPrescriptionRow extends RowDataPacket {
+  prescription_json: string | null;
+}
+
 function parseMedicalRecordId(id: string): number | null {
   const value = Number(id);
   if (!id || Number.isNaN(value) || value <= 0) return null;
   return value;
+}
+
+function parsePrescriptionJson(raw: string | null) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item, index) => ({
+        id: -(index + 1),
+        medicine_name: typeof item?.medicine_name === "string" ? item.medicine_name : "",
+        dosage: typeof item?.dosage === "string" ? item.dosage : "",
+        duration: typeof item?.duration === "string" ? item.duration : "",
+      }))
+      .filter((item) => item.medicine_name || item.dosage || item.duration);
+  } catch {
+    return [];
+  }
 }
 
 // GET /api/patient/medical-records/{id}
@@ -114,6 +136,17 @@ export async function GET(
       [medicalRecordId]
     );
 
+    const [revisionRows] = await db.execute<RevisionPrescriptionRow[]>(
+      `SELECT prescription_json
+       FROM medical_record_revisions
+       WHERE medical_record_id = ?
+         AND prescription_json IS NOT NULL
+         AND prescription_json <> '[]'
+       ORDER BY id DESC
+       LIMIT 1`,
+      [medicalRecordId]
+    );
+
     const prescriptions: Array<{
       id: number;
       medical_record_id: number;
@@ -142,6 +175,17 @@ export async function GET(
           medicine_name: row.medicine_name ?? "",
           dosage: row.dosage ?? "",
           duration: row.duration ?? "",
+        });
+      }
+    }
+
+    if (!prescriptions.some((prescription) => prescription.items.length > 0)) {
+      const revisionItems = parsePrescriptionJson(revisionRows[0]?.prescription_json ?? null);
+      if (revisionItems.length > 0) {
+        prescriptions.splice(0, prescriptions.length, {
+          id: 0,
+          medical_record_id: medicalRecordId,
+          items: revisionItems,
         });
       }
     }

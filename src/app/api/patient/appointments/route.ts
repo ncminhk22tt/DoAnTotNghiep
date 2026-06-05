@@ -58,6 +58,10 @@ interface PatientAppointmentListRow extends RowDataPacket {
   service_id: number | null;
   service_name: string | null;
   doctor_name: string | null;
+  doctor_code: string | null;
+  doctor_phone: string | null;
+  specialty_id: number | null;
+  specialty_name: string | null;
 }
 
 function formatDatePart(value: unknown): string {
@@ -107,12 +111,18 @@ export async function GET(req: NextRequest) {
                       TIME_FORMAT(s.start_time, '%H:%i:%s') AS start_time,
                       TIME_FORMAT(s.end_time, '%H:%i:%s') AS end_time,
                       s.room, s.price, s.service_id,
-                      sv.name AS service_name, u.full_name AS doctor_name
+                      sv.name AS service_name,
+                      u.full_name AS doctor_name,
+                      d.doctor_code AS doctor_code,
+                      u.phone AS doctor_phone,
+                      sp.id AS specialty_id,
+                      sp.name AS specialty_name
                FROM appointments a
                LEFT JOIN doctor_schedule_slots s ON s.id = a.slot_id
                LEFT JOIN doctors d ON d.id = COALESCE(a.doctor_id, s.doctor_id)
                LEFT JOIN users u ON u.id = d.user_id
                LEFT JOIN services sv ON sv.id = s.service_id
+               LEFT JOIN specialties sp ON sp.id = COALESCE(sv.specialty_id, d.specialty_id)
                WHERE a.user_id = ?`;
     const params: Array<string | number> = [authUser.id];
 

@@ -97,6 +97,48 @@
   font-weight: 600;
 }
 
+.infoSplit {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.infoBoxUser,
+.infoBoxDoctor {
+  border: 1px solid #c5dffa;
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.infoBoxUser {
+  background: linear-gradient(135deg, #e8f4fd 0%, #d4e8fc 100%);
+}
+
+.infoBoxDoctor {
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+}
+
+.infoBoxTitle {
+  font-weight: 700;
+  color: #1a365d;
+  font-size: 15px;
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #a8d4f5;
+}
+
+.headerLine {
+  color: #2d4a6f;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.headerLine strong {
+  color: #1a365d;
+}
+
 .statusBadge {
   border-radius: 999px;
   padding: 6px 14px;
@@ -351,6 +393,16 @@
     font-size: 13px;
   }
 
+  .infoSplit {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .infoBoxUser,
+  .infoBoxDoctor {
+    padding: 14px;
+  }
+
   .actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -436,6 +488,14 @@
   .metaGrid {
     font-size: 12px;
     gap: 8px;
+  }
+
+  .headerLine {
+    font-size: 13px;
+  }
+
+  .infoBoxTitle {
+    font-size: 14px;
   }
 
   .resultBox {

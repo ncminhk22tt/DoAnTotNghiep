@@ -37,7 +37,7 @@ type DoctorItem = {
 };
 
 function formatTime(item: PaymentRow) {
-  const date = item.work_date || "-";
+  const date = formatDisplayDate(item.work_date);
   const start = item.start_time ? item.start_time.slice(0, 5) : "--:--";
   const end = item.end_time ? item.end_time.slice(0, 5) : "--:--";
   return `${date} (${start} - ${end})`;
@@ -53,9 +53,20 @@ function getPaymentBadgeClass(status: "unpaid" | "paid") {
   return status === "paid" ? styles.badgePaid : styles.badgeUnpaid;
 }
 
+function formatDisplayDate(value: string | null | undefined) {
+  if (!value) return "-";
+  const rawDate = value.includes("T") ? value.split("T")[0] : value.split(" ")[0];
+  const [year, month, day] = rawDate.split("-");
+  if (!year || !month || !day) return value;
+  return `${day}-${month}-${year}`;
+}
+
 function formatDateTime(value: string | null | undefined) {
   if (!value) return "-";
-  return value.replace("T", " ").slice(0, 16);
+  const date = formatDisplayDate(value);
+  const rawTime = value.includes("T") ? value.split("T")[1] : value.split(" ")[1];
+  const time = rawTime ? rawTime.slice(0, 5) : "";
+  return time ? `${date} ${time}` : date;
 }
 
 export default function AdminPaymentsPage() {

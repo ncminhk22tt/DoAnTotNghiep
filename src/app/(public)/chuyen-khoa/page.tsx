@@ -1,9 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
-import { resolveSafeImageSrc } from "@/lib/imageSrc";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import styles from "./page.module.css";
@@ -46,7 +45,7 @@ export default function SpecialtyListingPage() {
       const res = await apiClient.get<{ data: Specialty[] }>("/api/public/specialties");
       setSpecialties(res.data || []);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Khong the tai chuyen khoa", "error");
+      showToast(err instanceof Error ? err.message : "Không thể tải chuyên khoa", "error");
     } finally {
       setLoading(false);
     }
@@ -70,62 +69,41 @@ export default function SpecialtyListingPage() {
     <div className={styles.page}>
       <main className={styles.container}>
         <section className={styles.hero}>
-          <div className={styles.breadcrumbWrapper}>
-            <Breadcrumbs
-              items={[
-                { label: "Trang chu", href: "/", home: true },
-                { label: "Kham chuyen khoa" },
-              ]}
-            />
-          </div>
-          <h1 className={styles.title}>Danh sach chuyen khoa danh cho ban</h1>
-          <p className={styles.sub}>Chon chuyen khoa phu hop, xem bac si lien quan va dat lich nhanh.</p>
+          <Breadcrumbs
+            items={[
+              { label: "Trang chủ", href: "/", home: true },
+              { label: "Khám chuyên khoa" },
+            ]}
+          />
+          <h1 className={styles.title}>Danh sách chuyên khoa dành cho bạn</h1>
+          <p className={styles.sub}>Chọn chuyên khoa phù hợp, xem bác sĩ liên quan và đặt lịch nhanh.</p>
           <div className={styles.filters}>
-            <div className={styles.inputWrapper}>
-              <svg className={styles.searchIcon} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16ZM19 19l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <input
-                className={styles.control}
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder="Tim chuyen khoa..."
-              />
-            </div>
-            <div className={styles.selectWrapper}>
-              <select
-                className={styles.control}
-                value={specialtyId}
-                onChange={(e) => setSpecialtyId(Number(e.target.value))}
-              >
-                <option value={0}>Tat ca chuyen khoa</option>
-                {specialties.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <svg className={styles.selectIcon} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
+            <input
+              className={styles.control}
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="Tìm chuyên khoa..."
+            />
+            <select
+              className={styles.control}
+              value={specialtyId}
+              onChange={(e) => setSpecialtyId(Number(e.target.value))}
+            >
+              <option value={0}>Tất cả chuyên khoa</option>
+              {specialties.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
           </div>
         </section>
 
         <section className={styles.section}>
           {loading ? (
-            <div className={styles.loadingWrapper}>
-              <div className={styles.spinner}></div>
-              <p className={styles.empty}>Dang tai danh sach chuyen khoa...</p>
-            </div>
+            <p className={styles.empty}>Đang tải danh sách chuyên khoa...</p>
           ) : filteredSpecialties.length === 0 ? (
-            <div className={styles.emptyWrapper}>
-              <svg className={styles.emptyIcon} width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="32" cy="32" r="30" stroke="currentColor" strokeWidth="2" opacity="0.2"/>
-                <path d="M32 20v16M32 44h.02" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-              </svg>
-              <p className={styles.empty}>Khong co chuyen khoa phu hop bo loc.</p>
-            </div>
+            <p className={styles.empty}>Không có chuyên khoa phù hợp bộ lọc.</p>
           ) : (
             <div className={styles.grid}>
               {filteredSpecialties.map((s) => (
@@ -136,20 +114,19 @@ export default function SpecialtyListingPage() {
                 >
                   <div className={styles.icon}>
                     {s.logo_url ? (
-                      <img src={resolveSafeImageSrc(s.logo_url, "/file.svg")} alt={s.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img
+                        src={s.logo_url}
+                        alt={s.name}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
                     ) : (
                       acronym(s.name)
                     )}
                   </div>
                   <div className={styles.cardBody}>
                     <p className={styles.name}>{s.name}</p>
-                    <p className={styles.meta}>{s.description || "Chuyen khoa kham va dieu tri chuyen sau."}</p>
-                    <span className={styles.cardCta}>
-                      Xem danh sach dich vu
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </span>
+                    <p className={styles.meta}>{s.description || "Chuyên khoa khám và điều trị chuyên sâu."}</p>
+                    <span className={styles.cardCta}>Xem danh sách dịch vụ</span>
                   </div>
                 </button>
               ))}

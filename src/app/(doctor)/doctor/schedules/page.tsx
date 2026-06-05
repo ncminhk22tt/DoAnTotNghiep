@@ -87,6 +87,14 @@ function toDateOnly(value: string | null | undefined) {
   return value.slice(0, 10);
 }
 
+function formatDisplayDate(value: string | null | undefined) {
+  const normalized = toDateOnly(value);
+  if (!normalized) return "-";
+  const [year, month, day] = normalized.split("-");
+  if (!year || !month || !day) return normalized;
+  return `${day}-${month}-${year}`;
+}
+
 function isPastDate(value: string, todayValue: string) {
   return value < todayValue;
 }
@@ -956,7 +964,7 @@ export default function DoctorSchedulesPage() {
                           <div>{slot.service_name || serviceNameById.get(slot.service_id) || "Dịch vụ đã bị xóa"}</div>
                         </td>
                         <td className={styles.td}>
-                          <div>{toDateOnly(slot.work_date)}</div>
+                          <div>{formatDisplayDate(slot.work_date)}</div>
                         </td>
                         <td className={styles.td}>
                           <div>
@@ -1536,7 +1544,7 @@ export default function DoctorSchedulesPage() {
             <p>
               Bạn có chắc muốn{" "}
               <strong>{confirmLockSlot.status === "closed" ? "mở lịch" : "khóa lịch"}</strong> cho slot
-              ngày <strong>{toDateOnly(confirmLockSlot.work_date)}</strong> từ{" "}
+              ngày <strong>{formatDisplayDate(confirmLockSlot.work_date)}</strong> từ{" "}
               <strong>{toHHMM(confirmLockSlot.start_time)}</strong> đến{" "}
               <strong>{toHHMM(confirmLockSlot.end_time)}</strong> không?
             </p>

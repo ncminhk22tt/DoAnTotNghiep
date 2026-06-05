@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { RowDataPacket } from "mysql2";
 import { getDoctorSpecialtiesReady } from "@/lib/doctorSpecialtySchema";
+import { getServiceSoftDeleteReady } from "@/lib/serviceSchema";
 
 // FILE PUBLIC READ:
 // - Chi doc dữ liệu bac si (không can token).
@@ -21,6 +22,8 @@ interface DoctorListRow extends RowDataPacket {
   specialty_name: string | null;
   specialty_ids_csv: string | null;
   specialty_names_csv: string | null;
+  service_ids_csv: string | null;
+  service_names_csv: string | null;
   experience: number | null;
   description: string | null;
   total_services: number;
@@ -32,11 +35,21 @@ interface DoctorListRow extends RowDataPacket {
 export async function GET(req: NextRequest) {
   try {
     const doctorSpecialtiesReady = await getDoctorSpecialtiesReady();
+    const serviceSoftDeleteReady = await getServiceSoftDeleteReady();
     const specialtyIdParam = req.nextUrl.searchParams.get("specialty_id");
     const serviceIdParam = req.nextUrl.searchParams.get("service_id");
     const specialtySelect = doctorSpecialtiesReady
       ? `dsp.specialty_ids_csv, dsp.specialty_names_csv,`
       : `NULL AS specialty_ids_csv, NULL AS specialty_names_csv,`;
+    const serviceJoin = `LEFT JOIN (
+                         SELECT ds.doctor_id,
+                                GROUP_CONCAT(DISTINCT ds.service_id ORDER BY ds.service_id ASC) AS service_ids_csv,
+                                GROUP_CONCAT(DISTINCT s.name ORDER BY s.name ASC SEPARATOR '|||') AS service_names_csv
+                         FROM doctor_services ds
+                         LEFT JOIN services s ON s.id = ds.service_id
+                         ${serviceSoftDeleteReady ? "WHERE s.is_active = 1" : ""}
+                         GROUP BY ds.doctor_id
+                       ) dsvc ON dsvc.doctor_id = d.id`;
     const specialtyJoin = doctorSpecialtiesReady
       ? `LEFT JOIN (
                  SELECT doctor_id,
@@ -54,14 +67,16 @@ export async function GET(req: NextRequest) {
       : "";
     const groupByColumns = doctorSpecialtiesReady
       ? `d.id, d.user_id, d.doctor_code, u.full_name, u.avatar,
-         d.specialty_id, sp.name, dsp.specialty_ids_csv, dsp.specialty_names_csv, d.experience, d.description`
+         d.specialty_id, sp.name, dsp.specialty_ids_csv, dsp.specialty_names_csv,
+         dsvc.service_ids_csv, dsvc.service_names_csv, d.experience, d.description`
       : `d.id, d.user_id, d.doctor_code, u.full_name, u.avatar,
-         d.specialty_id, sp.name, d.experience, d.description`;
+         d.specialty_id, sp.name, dsvc.service_ids_csv, dsvc.service_names_csv, d.experience, d.description`;
 
     // SQL goc lấy danh sach bac si dang active.
     let sql = `SELECT d.id AS doctor_id, d.user_id, d.doctor_code, u.full_name, u.avatar,
                       d.specialty_id, sp.name AS specialty_name, d.experience, d.description,
                       ${specialtySelect}
+                      dsvc.service_ids_csv, dsvc.service_names_csv,
                       COUNT(DISTINCT ds.service_id) AS total_services,
                       AVG(dr.rating) AS rating_avg,
                       COUNT(DISTINCT dr.id) AS rating_count
@@ -69,6 +84,7 @@ export async function GET(req: NextRequest) {
                JOIN users u ON u.id = d.user_id
                LEFT JOIN specialties sp ON sp.id = d.specialty_id
                ${specialtyJoin}
+               ${serviceJoin}
                LEFT JOIN doctor_services ds ON ds.doctor_id = d.id
                LEFT JOIN doctor_reviews dr ON dr.doctor_id = d.id
                WHERE u.role = 'doctor' AND u.status = 'active'`;
