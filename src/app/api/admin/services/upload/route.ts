@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const publicUrl = await uploadImageBuffer(buffer, "services", file.name);
+    const publicUrl = await uploadImageBuffer(buffer, "services");
 
     return NextResponse.json({
       success: true,
