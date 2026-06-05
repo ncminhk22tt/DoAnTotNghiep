@@ -198,29 +198,6 @@ export function FloatingChatWidget() {
     return out;
   }
 
-  function buildDisplayRanges(slots: Slot[]) {
-    if (!slots.length) return [] as Array<{ start: string; end: string; status: "available" | "full" }>;
-    const sorted = [...slots].sort((a, b) => a.start_time.localeCompare(b.start_time));
-    const ranges: Array<{ start: string; end: string; status: "available" | "full" }> = [];
-    let start = sorted[0].start_time;
-    let end = sorted[0].end_time;
-    let status = sorted[0].status === "available" ? "available" : "full";
-    for (let i = 1; i < sorted.length; i += 1) {
-      const current = sorted[i];
-      const currentStatus = current.status === "available" ? "available" : "full";
-      if (current.start_time === end && currentStatus === status) {
-        end = current.end_time;
-      } else {
-        ranges.push({ start, end, status });
-        start = current.start_time;
-        end = current.end_time;
-        status = currentStatus;
-      }
-    }
-    ranges.push({ start, end, status });
-    return ranges;
-  }
-
   function formatDateVi(ymd: string) {
     const [year, month, day] = ymd.split("-");
     if (!year || !month || !day) return ymd;
