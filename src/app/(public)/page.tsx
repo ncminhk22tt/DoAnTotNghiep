@@ -251,6 +251,18 @@ export default function HomePage() {
               </div>
             </div>
 
+            <div className={styles.heroVisual} aria-hidden="true">
+              <img
+                src="https://png.pngtree.com/png-clipart/20240428/original/pngtree-doctor-examination-patient-medical-health-hospital-activity-flat-png-image_14963730.png"
+                alt=""
+                className={styles.heroIllustration}
+                loading="eager"
+                onError={(e) => {
+                  e.currentTarget.src = "/healthcare-family.svg";
+                }}
+              />
+            </div>
+
           </div>
         </div>
       </section>

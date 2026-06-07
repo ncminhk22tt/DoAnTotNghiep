@@ -63,6 +63,20 @@
   gap: 1.5rem;
 }
 
+.heroVisual {
+  display: none;
+  justify-self: end;
+  align-self: center;
+  width: min(100%, 520px);
+}
+
+.heroIllustration {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 24px 48px rgba(37, 99, 235, 0.16));
+}
+
 .heroTitle {
   font-size: 2.5rem;
   font-weight: 700;
@@ -603,6 +617,10 @@
     gap: 3rem;
   }
 
+  .heroVisual {
+    display: block;
+  }
+
   .heroTitle {
     font-size: 3.5rem;
   }
@@ -620,6 +638,10 @@
 @media (max-width: 767px) {
   .searchWrapper {
     margin-top: 0.5rem;
+  }
+
+  .heroVisual {
+    display: none;
   }
 
   .searchButton {
