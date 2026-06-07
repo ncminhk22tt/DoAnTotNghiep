@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
+import { resolveSafeImageSrc } from "@/lib/imageSrc";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import styles from "./page.module.css";
 
@@ -10,6 +11,7 @@ type Specialty = {
   id: number;
   name: string;
   description: string | null;
+  logo_url: string | null;
 };
 
 type Service = {
@@ -18,6 +20,7 @@ type Service = {
   specialty_id: number | null;
   specialty_name: string | null;
   description: string | null;
+  logo_url?: string | null;
 };
 
 function parseSpecialtyIdFromSlug(slug: string): number | null {
@@ -43,6 +46,10 @@ function acronym(name: string) {
   if (parts.length === 0) return "DV";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
+}
+
+function resolveServiceImage(service: Service, specialtyLogoUrl: string | null) {
+  return resolveSafeImageSrc(service.logo_url || specialtyLogoUrl, "/file.svg");
 }
 
 export default function SpecialtyServicesPage({
@@ -103,7 +110,7 @@ export default function SpecialtyServicesPage({
     return (
       <div className={styles.page}>
         <main className={styles.container}>
-          <section className={styles.hero}>Dang tai danh sach dich vu...</section>
+          <section className={styles.hero}>Đang tải danh sách dịch vụ...</section>
         </main>
       </div>
     );
@@ -113,7 +120,7 @@ export default function SpecialtyServicesPage({
     return (
       <div className={styles.page}>
         <main className={styles.container}>
-          <section className={styles.hero}>Khong tim thay chuyen khoa.</section>
+          <section className={styles.hero}>Không tìm thấy chuyên khoa nào...</section>
         </main>
       </div>
     );
@@ -126,25 +133,25 @@ export default function SpecialtyServicesPage({
           <Breadcrumbs
             items={[
               { label: "Trang chu", href: "/", home: true },
-              { label: "Kham chuyen khoa", href: "/chuyen-khoa" },
+              { label: "Khám chuyên khoa", href: "/chuyen-khoa" },
               { label: specialty.name },
             ]}
           />
-          <h1 className={styles.title}>Danh sach dich vu - {specialty.name}</h1>
+          <h1 className={styles.title}>Danh sách dịch vụ - {specialty.name}</h1>
           <p className={styles.sub}>{specialty.description || "Chon dich vu de xem bac si phu hop."}</p>
           <div className={styles.filters}>
             <input
               className={styles.control}
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Tim dich vu..."
+              placeholder="Tìm dịch vụ..."
             />
             <select
               className={styles.control}
               value={serviceId}
               onChange={(e) => setServiceId(Number(e.target.value))}
             >
-              <option value={0}>Tat ca dich vu</option>
+              <option value={0}>Tất cả dịch vụ</option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -156,7 +163,7 @@ export default function SpecialtyServicesPage({
 
         <section className={styles.section}>
           {filteredServices.length === 0 ? (
-            <p className={styles.empty}>Khong co dich vu phu hop bo loc.</p>
+            <p className={styles.empty}>Không có dịch vụ phù hợp với bộ lọc.</p>
           ) : (
             <div className={styles.grid}>
               {filteredServices.map((service) => (
@@ -169,11 +176,24 @@ export default function SpecialtyServicesPage({
                     )
                   }
                 >
-                  <div className={styles.icon}>{acronym(service.name)}</div>
+                  <div className={styles.icon}>
+                    {service.logo_url || specialty.logo_url ? (
+                      <img
+                        className={styles.serviceImage}
+                        src={resolveServiceImage(service, specialty.logo_url)}
+                        alt={service.name}
+                        onError={(e) => {
+                          e.currentTarget.src = "/file.svg";
+                        }}
+                      />
+                    ) : (
+                      <span>{acronym(service.name)}</span>
+                    )}
+                  </div>
                   <div className={styles.cardBody}>
                     <p className={styles.name}>{service.name}</p>
-                    <p className={styles.meta}>{service.description || "Dich vu kham theo chuyen khoa."}</p>
-                    <span className={styles.cardCta}>Xem bac si thuoc dich vu nay</span>
+                    <p className={styles.meta}>{service.description || "ịch vụ khám theo chuyên khoa."}</p>
+                    <span className={styles.cardCta}>Xem bác sĩ thuộc dịch vụ này</span>
                   </div>
                 </button>
               ))}
@@ -184,4 +204,3 @@ export default function SpecialtyServicesPage({
     </div>
   );
 }
-

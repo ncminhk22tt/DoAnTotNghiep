@@ -1,16 +1,22 @@
-const fs = require("fs");
-const path = require("path");
 const mysql = require("mysql2/promise");
 const bcrypt = require("bcrypt");
 const { getLocalDbConfig } = require("./db-local.cjs");
 
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value || !value.trim()) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value.trim();
+}
+
 async function main() {
   const db = getLocalDbConfig();
 
-  const phone = process.env.ADMIN_PHONE || "+84900000000";
-  const password = process.env.ADMIN_PASSWORD || "123456";
-  const fullName = process.env.ADMIN_FULL_NAME || "Administrator";
-  const email = process.env.ADMIN_EMAIL || "admin@medical-booking.local";
+  const phone = requireEnv("ADMIN_PHONE");
+  const password = requireEnv("ADMIN_PASSWORD");
+  const fullName = requireEnv("ADMIN_FULL_NAME");
+  const email = requireEnv("ADMIN_EMAIL");
 
   const conn = await mysql.createConnection({
     host: db.host,

@@ -613,10 +613,10 @@ export default function SpecialtyDetailPage({
           <Breadcrumbs
             items={[
               { label: "Trang chủ", href: "/", home: true },
-              { label: "Kham chuyên khoa", href: "/chuyen-khoa" },
+              { label: "Khám chuyên khoa", href: "/chuyen-khoa" },
               { label: specialty.name, href: specialtyPath },
               ...(derivedService ? [{ label: derivedService.name, href: currentPath }] : []),
-              { label: doctorDetail?.full_name || "Chon bac si" },
+              { label: doctorDetail?.full_name || "Chọn bác sĩ" },
             ]}
           />
         </section>
@@ -633,7 +633,7 @@ export default function SpecialtyDetailPage({
                 }}
               />
               <div>
-                <h2 className={styles.doctorName}>{doctorDetail?.full_name || "Chon bac si"}</h2>
+                <h2 className={styles.doctorName}>{doctorDetail?.full_name || "Chọn bác sĩ"}</h2>
                 <p className={styles.doctorSub}>
                   <strong>Khoa:</strong> {doctorDetail?.specialty_name || specialty.name}
                 </p>

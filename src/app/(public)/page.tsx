@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
-import { resolveSafeImageSrc } from "@/lib/imageSrc";
 import styles from "./page.module.css";
 
 type Specialty = {
@@ -38,6 +37,15 @@ function slugify(name: string) {
     .replace(/\s+/g, "-");
 }
 
+function shuffleArray<T>(items: T[]) {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 export default function HomePage() {
   const router = useRouter();
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
@@ -61,8 +69,8 @@ export default function HomePage() {
           apiClient.get<{ data: Service[] }>("/api/public/services"),
           apiClient.get<{ data: Doctor[] }>("/api/public/doctors"),
         ]);
-        setSpecialties(specialtyRes.data || []);
-        setServices(serviceRes.data || []);
+        setSpecialties(shuffleArray(specialtyRes.data || []));
+        setServices(shuffleArray(serviceRes.data || []));
         setDoctors(doctorRes.data || []);
       } catch {
         setSpecialties([]);
@@ -243,14 +251,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Right Image */}
-            <div className={styles.heroImage}>
-              <img
-                src="https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?w=600&h=700&fit=crop"
-                alt="Doctor"
-              />
-              
-            </div>
           </div>
         </div>
       </section>
@@ -272,7 +272,7 @@ export default function HomePage() {
                 onClick={() => router.push(`/dich-vu/${slugify(specialty.name)}-s${specialty.id}`)}
               >
                 <span className={styles.specialtyIcon}>
-                  {specialty.logo_url ? <img src={resolveSafeImageSrc(specialty.logo_url, "/file.svg")} alt={specialty.name} /> : "CK"}
+                  {specialty.logo_url ? <img src={specialty.logo_url} alt={specialty.name} /> : null}
                 </span>
                 <h3 className={styles.specialtyName}>{specialty.name}</h3>
                 <p className={styles.specialtyDesc}>
@@ -306,7 +306,7 @@ export default function HomePage() {
                         onClick={() => router.push(`/dich-vu/${slugify(specialty.name)}-s${specialty.id}`)}
                       >
                         <span className={styles.specialtyIcon}>
-                          {specialty.logo_url ? <img src={resolveSafeImageSrc(specialty.logo_url, "/file.svg")} alt={specialty.name} /> : "CK"}
+                          {specialty.logo_url ? <img src={specialty.logo_url} alt={specialty.name} /> : null}
                         </span>
                         <h3 className={styles.specialtyName}>{specialty.name}</h3>
                         <p className={styles.specialtyDesc}>
@@ -353,27 +353,14 @@ export default function HomePage() {
             {visibleServices.map((service) => (
               <article key={service.id} className={styles.serviceCard}>
                 <div className={styles.serviceImageWrapper}>
-                  <img
-                    src={resolveSafeImageSrc(service.logo_url, "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&h=300&fit=crop")}
-                    alt={service.name}
-                    className={styles.serviceImage}
-                  />
+                  {service.logo_url ? (
+                    <img src={service.logo_url} alt={service.name} className={styles.serviceImage} />
+                  ) : null}
                 </div>
 
                 <div className={styles.serviceContent}>
                   <h3 className={styles.serviceName}>{service.name}</h3>
                   <p className={styles.serviceDescription}>{service.description}</p>
-
-                  <div className={styles.serviceInfo}>
-                    <div className={styles.infoItem}>
-                      <span className={styles.infoIcon}>🩺</span>
-                      <span>{service.specialty_name || "Chuyên khoa"}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                      <span className={styles.infoIcon}>📍</span>
-                      <span>Tại phòng khám</span>
-                    </div>
-                  </div>
 
                   <button
                     className={styles.serviceButton}
