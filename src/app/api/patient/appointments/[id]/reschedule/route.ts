@@ -54,6 +54,7 @@ export async function PATCH(
     await getAppointmentWorkflowSchemaReady();
     await getAppointmentDecisionSchemaReady();
     const hasScheduleIdColumn = await hasTableColumn("appointments", "schedule_id");
+    const hasAppointmentDayColumn = await hasTableColumn("appointments", "appointment_day");
 
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "patient") {
@@ -179,7 +180,7 @@ export async function PATCH(
       );
     }
 
-    if (newSlot.status === "closed" || newSlot.status === "full" || newSlot.booked_count >= newSlot.max_patients) {
+    if (newSlot.status === "closed" || newSlot.status === "full" || newSlot.booked_count >= 1) {
       await connection.rollback();
       return NextResponse.json(
         { success: false, message: "Slot moi khong con cho" },
@@ -195,7 +196,7 @@ export async function PATCH(
       );
     }
 
-    const [overlapRows] = await connection.execute<RowDataPacket[]>(
+    const [sameDayRows] = await connection.execute<RowDataPacket[]>(
       `SELECT a.id
        FROM appointments a
        JOIN doctor_schedule_slots s ON s.id = a.slot_id
@@ -203,14 +204,13 @@ export async function PATCH(
          AND a.id <> ?
          AND a.status IN ('pending','confirmed')
          AND s.work_date = ?
-         AND (s.start_time < ? AND s.end_time > ?)
        LIMIT 1`,
-      [authUser.id, appointmentId, newSlot.work_date, newSlot.end_time, newSlot.start_time]
+      [authUser.id, appointmentId, newSlot.work_date]
     );
-    if (overlapRows.length > 0) {
+    if (sameDayRows.length > 0) {
       await connection.rollback();
       return NextResponse.json(
-        { success: false, message: "Ban da co lich trung gio voi slot moi" },
+        { success: false, message: "Bạn chỉ được đặt 1 lịch khám trong cùng một ngày" },
         { status: 400 }
       );
     }
@@ -222,7 +222,7 @@ export async function PATCH(
       [oldSlot.id]
     );
     const oldAfter = Math.max(oldSlot.booked_count - 1, 0);
-    if (oldSlot.status === "full" && oldAfter < oldSlot.max_patients) {
+    if (oldSlot.status === "full" && oldAfter < 1) {
       await connection.execute<ResultSetHeader>(
         "UPDATE doctor_schedule_slots SET status = 'available' WHERE id = ?",
         [oldSlot.id]
@@ -235,7 +235,7 @@ export async function PATCH(
        WHERE id = ?`,
       [newSlot.id]
     );
-    if (newSlot.booked_count + 1 >= newSlot.max_patients) {
+    if (newSlot.booked_count + 1 >= 1) {
       await connection.execute<ResultSetHeader>(
         "UPDATE doctor_schedule_slots SET status = 'full' WHERE id = ?",
         [newSlot.id]
@@ -246,15 +246,27 @@ export async function PATCH(
     const nextAdminNote = `${patientNotePrefix} | ${oldSlot.work_date} ${oldSlot.start_time.slice(0, 5)}-${oldSlot.end_time.slice(0, 5)} -> ${newSlot.work_date} ${newSlot.start_time.slice(0, 5)}-${newSlot.end_time.slice(0, 5)}`;
 
     await connection.execute<ResultSetHeader>(
-      hasScheduleIdColumn
+      hasScheduleIdColumn && hasAppointmentDayColumn
+        ? `UPDATE appointments
+           SET slot_id = ?, schedule_id = ?, appointment_day = ?, doctor_id = ?, status = 'pending', admin_note = ?, checked_in_at = NULL, checked_in_by = NULL
+           WHERE id = ?`
+        : hasScheduleIdColumn
         ? `UPDATE appointments
            SET slot_id = ?, schedule_id = ?, doctor_id = ?, status = 'pending', admin_note = ?, checked_in_at = NULL, checked_in_by = NULL
+           WHERE id = ?`
+        : hasAppointmentDayColumn
+        ? `UPDATE appointments
+           SET slot_id = ?, appointment_day = ?, doctor_id = ?, status = 'pending', admin_note = ?, checked_in_at = NULL, checked_in_by = NULL
            WHERE id = ?`
         : `UPDATE appointments
            SET slot_id = ?, doctor_id = ?, status = 'pending', admin_note = ?, checked_in_at = NULL, checked_in_by = NULL
            WHERE id = ?`,
-      hasScheduleIdColumn
+      hasScheduleIdColumn && hasAppointmentDayColumn
+        ? [newSlot.id, newSlot.id, newSlot.work_date, newSlot.doctor_id, nextAdminNote, appointmentId]
+        : hasScheduleIdColumn
         ? [newSlot.id, newSlot.id, newSlot.doctor_id, nextAdminNote, appointmentId]
+        : hasAppointmentDayColumn
+        ? [newSlot.id, newSlot.work_date, newSlot.doctor_id, nextAdminNote, appointmentId]
         : [newSlot.id, newSlot.doctor_id, nextAdminNote, appointmentId]
     );
 
@@ -265,7 +277,7 @@ export async function PATCH(
       [authUser.id, newSlot.id]
     );
 
-    if (oldAfter < oldSlot.max_patients) {
+    if (oldAfter < 1) {
       await notifyWaitingPatientForSlot(connection, oldSlot.id);
     }
 
@@ -323,8 +335,14 @@ export async function PATCH(
         new_slot_id: newSlot.id,
       },
     });
-  } catch {
+  } catch (error) {
     await connection.rollback();
+    if ((error as { code?: string }).code === "ER_DUP_ENTRY") {
+      return NextResponse.json(
+        { success: false, message: "Slot moi da co lich kham" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { success: false, message: "Loi server" },
       { status: 500 }

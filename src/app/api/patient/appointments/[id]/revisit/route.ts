@@ -51,6 +51,7 @@ export async function POST(
   try {
     await getAppointmentWorkflowSchemaReady();
     const hasScheduleIdColumn = await hasTableColumn("appointments", "schedule_id");
+    const hasAppointmentDayColumn = await hasTableColumn("appointments", "appointment_day");
     const authUser = getAuthUserFromRequest(req);
     if (!authUser || authUser.role !== "patient") {
       return NextResponse.json(
@@ -162,7 +163,7 @@ export async function POST(
       );
     }
 
-    if (slot.status === "closed" || slot.status === "full" || slot.booked_count >= slot.max_patients) {
+    if (slot.status === "closed" || slot.status === "full" || slot.booked_count >= 1) {
       await connection.rollback();
       return NextResponse.json(
         { success: false, message: "Slot moi khong con cho" },
@@ -174,6 +175,25 @@ export async function POST(
       await connection.rollback();
       return NextResponse.json(
         { success: false, message: "Khong the dat tai kham vao slot da qua" },
+        { status: 400 }
+      );
+    }
+
+    const [sameDayRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT a.id
+       FROM appointments a
+       JOIN doctor_schedule_slots s ON s.id = a.slot_id
+       WHERE a.user_id = ?
+         AND a.id <> ?
+         AND a.status IN ('pending','confirmed')
+         AND s.work_date = ?
+       LIMIT 1`,
+      [authUser.id, sourceAppointmentId, slot.work_date]
+    );
+    if (sameDayRows.length > 0) {
+      await connection.rollback();
+      return NextResponse.json(
+        { success: false, message: "Bạn chỉ được đặt 1 lịch khám trong cùng một ngày" },
         { status: 400 }
       );
     }
@@ -205,7 +225,7 @@ export async function POST(
       [newSlotId]
     );
 
-    if (slot.booked_count + 1 >= slot.max_patients) {
+    if (slot.booked_count + 1 >= 1) {
       await connection.execute<ResultSetHeader>(
         `UPDATE doctor_schedule_slots
          SET status = 'full'
@@ -222,11 +242,23 @@ export async function POST(
       noteParts.push(`Ly do tai kham: ${reason}`);
     }
 
-    const [insertResult] = hasScheduleIdColumn
+    const [insertResult] = hasScheduleIdColumn && hasAppointmentDayColumn
+      ? await connection.execute<ResultSetHeader>(
+          `INSERT INTO appointments (user_id, slot_id, doctor_id, schedule_id, appointment_day, status, note, created_at)
+           VALUES (?, ?, ?, ?, ?, 'pending', ?, NOW())`,
+          [authUser.id, newSlotId, sourceDoctorId, newSlotId, slot.work_date, noteParts.join("\n")]
+        )
+      : hasScheduleIdColumn
       ? await connection.execute<ResultSetHeader>(
           `INSERT INTO appointments (user_id, slot_id, doctor_id, schedule_id, status, note, created_at)
            VALUES (?, ?, ?, ?, 'pending', ?, NOW())`,
           [authUser.id, newSlotId, sourceDoctorId, newSlotId, noteParts.join("\n")]
+        )
+      : hasAppointmentDayColumn
+      ? await connection.execute<ResultSetHeader>(
+          `INSERT INTO appointments (user_id, slot_id, doctor_id, appointment_day, status, note, created_at)
+           VALUES (?, ?, ?, ?, 'pending', ?, NOW())`,
+          [authUser.id, newSlotId, sourceDoctorId, slot.work_date, noteParts.join("\n")]
         )
       : await connection.execute<ResultSetHeader>(
           `INSERT INTO appointments (user_id, slot_id, doctor_id, status, note, created_at)
@@ -289,8 +321,14 @@ export async function POST(
         slot_id: newSlotId,
       },
     });
-  } catch {
+  } catch (error) {
     await connection.rollback();
+    if ((error as { code?: string }).code === "ER_DUP_ENTRY") {
+      return NextResponse.json(
+        { success: false, message: "Slot moi da co lich kham" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { success: false, message: "Loi server" },
       { status: 500 }

@@ -229,12 +229,12 @@ export async function PATCH(req: NextRequest) {
     setClauses.push("room = ?");
     params.push(room || null);
 
-    if (requestedStatus) {
+    if (requestedStatus === "closed") {
       setClauses.push("status = ?");
       params.push(requestedStatus);
     } else {
       setClauses.push(
-        "status = CASE WHEN status = 'closed' THEN 'closed' WHEN booked_count >= max_patients THEN 'full' ELSE 'available' END"
+        "status = CASE WHEN status = 'closed' THEN 'closed' WHEN booked_count >= 1 THEN 'full' ELSE 'available' END"
       );
     }
 

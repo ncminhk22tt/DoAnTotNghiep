@@ -144,7 +144,7 @@ export async function PATCH(
         );
 
         const newBookedCount = Math.max(slot.booked_count - 1, 0);
-        if (slot.status === "full" && newBookedCount < slot.max_patients) {
+        if (slot.status === "full" && newBookedCount < 1) {
           await connection.execute(
             `UPDATE doctor_schedule_slots
              SET status = 'available'
@@ -179,16 +179,11 @@ export async function PATCH(
         [appointment.slot_id]
       );
       const slotForWaitlist = slotRowsForWaitlist[0];
-      if (slotForWaitlist && slotForWaitlist.booked_count < slotForWaitlist.max_patients) {
+      if (slotForWaitlist && slotForWaitlist.booked_count < 1) {
         await notifyWaitingPatientForSlot(connection, appointment.slot_id);
       }
     }
 
-    if (status === "cancelled" || status === "no_show") {
-      await evaluatePatientRiskAndNotifyAdmins(connection, appointment.user_id);
-    }
-
-    const actionUrlReady = await getNotificationActionUrlReady();
     const statusMessage =
       status === "confirmed"
         ? `Lich hen #${appointmentId} da duoc xac nhan`
@@ -199,26 +194,50 @@ export async function PATCH(
       status === "cancelled" && decisionNote
         ? `${statusMessage}. Ly do: ${decisionNote}`
         : statusMessage;
-    await connection.execute<ResultSetHeader>(
-      actionUrlReady
-        ? `INSERT INTO notifications (user_id, message, action_url, is_read, created_at)
-           VALUES (?, ?, ?, false, NOW())`
-        : `INSERT INTO notifications (user_id, message, is_read, created_at)
-           VALUES (?, ?, false, NOW())`,
-      actionUrlReady
-        ? [appointment.user_id, notifyMessage, "/patient/appointments"]
-        : [appointment.user_id, notifyMessage]
-    );
 
     await connection.commit();
-    await writeAuditLog({
-      user_id: authUser.id,
-      action: "admin_appointment_status_update",
-      entity_type: "appointment",
-      entity_id: appointmentId,
-      status: "success",
-      detail: `status: ${appointment.status} -> ${status}${decisionNote ? `; note: ${decisionNote}` : ""}`,
-    });
+
+    void (async () => {
+      try {
+        const actionUrlReady = await getNotificationActionUrlReady();
+        await db.execute<ResultSetHeader>(
+          actionUrlReady
+            ? `INSERT INTO notifications (user_id, message, action_url, is_read, created_at)
+               VALUES (?, ?, ?, false, NOW())`
+            : `INSERT INTO notifications (user_id, message, is_read, created_at)
+               VALUES (?, ?, false, NOW())`,
+          actionUrlReady
+            ? [appointment.user_id, notifyMessage, "/patient/appointments"]
+            : [appointment.user_id, notifyMessage]
+        );
+      } catch (notificationError) {
+        console.error("Failed to create admin appointment notification:", notificationError);
+      }
+    })();
+
+    if (status === "cancelled" || status === "no_show") {
+      void (async () => {
+        const riskConnection = await db.getConnection();
+        try {
+          await evaluatePatientRiskAndNotifyAdmins(riskConnection, appointment.user_id);
+        } catch (riskError) {
+          console.error("Failed to evaluate patient risk after admin update:", riskError);
+        } finally {
+          riskConnection.release();
+        }
+      })();
+    }
+
+    void writeAuditLog({
+        user_id: authUser.id,
+        action: "admin_appointment_status_update",
+        entity_type: "appointment",
+        entity_id: appointmentId,
+        status: "success",
+        detail: `status: ${appointment.status} -> ${status}${decisionNote ? `; note: ${decisionNote}` : ""}`,
+      }).catch((auditError) => {
+        console.error("Failed to write admin appointment audit log:", auditError);
+      });
 
     return NextResponse.json({
       success: true,
@@ -230,7 +249,7 @@ export async function PATCH(
         admin_note: decisionNote ?? null,
       },
     });
-  } catch {
+  } catch (error) {
     await connection.rollback();
     await writeAuditLog({
       action: "admin_appointment_status_update",
@@ -238,6 +257,12 @@ export async function PATCH(
       status: "failed",
       detail: "Cap nhat trang thai lich hen that bai",
     });
+    if ((error as { code?: string }).code === "ER_DUP_ENTRY") {
+      return NextResponse.json(
+        { success: false, message: "Slot nay da co lich kham" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { success: false, message: "Loi server" },
       { status: 500 }

@@ -11,7 +11,6 @@ import { canTransitionAppointmentStatus } from "@/lib/appointmentStatus";
 import { getAppointmentDecisionSchemaReady } from "@/lib/appointmentDecisionSchema";
 import { getAppointmentWorkflowSchemaReady } from "@/lib/appointmentWorkflowSchema";
 import { writeAuditLog } from "@/lib/auditLog";
-import { notifyWaitingPatientForSlot } from "@/lib/waitlistService";
 import { getNotificationActionUrlReady } from "@/lib/notificationSchema";
 
 type UpdateAppointmentBody = {
@@ -76,7 +75,7 @@ interface SlotRow extends RowDataPacket {
   id: number;
   booked_count: number;
   max_patients: number;
-  status: "available" | "full" | "closed";
+  status: "available" | "full" | "closed" | "locked";
 }
 
 function parseAppointmentId(id: string): number | null {
@@ -416,47 +415,45 @@ export async function PATCH(
         const slot = slotRows[0];
         await connection.execute<ResultSetHeader>(
           `UPDATE doctor_schedule_slots
-           SET booked_count = GREATEST(booked_count - 1, 0)
+           SET booked_count = GREATEST(booked_count - 1, 0),
+               status = 'locked'
            WHERE id = ?`,
           [slot.id]
         );
-        const nextBooked = Math.max(slot.booked_count - 1, 0);
-        if (slot.status === "full" && nextBooked < slot.max_patients) {
-          await connection.execute<ResultSetHeader>(
-            `UPDATE doctor_schedule_slots
-             SET status = 'available'
-             WHERE id = ?`,
-            [slot.id]
-          );
-        }
-        if (nextBooked < slot.max_patients) {
-          await notifyWaitingPatientForSlot(connection, slot.id);
-        }
       }
     }
 
+    await connection.commit();
+
     if (status === "cancelled") {
-      const actionUrlReady = await getNotificationActionUrlReady();
-      const message = `Lịch hẹn #${appointmentId} đã bị bác sĩ hủy. Lý do: ${decisionNote}`;
-      await connection.execute<ResultSetHeader>(
-        actionUrlReady
-          ? `INSERT INTO notifications (user_id, message, action_url, is_read, created_at)
-             VALUES (?, ?, ?, false, NOW())`
-          : `INSERT INTO notifications (user_id, message, is_read, created_at)
-             VALUES (?, ?, false, NOW())`,
-        actionUrlReady ? [current.user_id, message, "/patient/appointments"] : [current.user_id, message]
-      );
+      void (async () => {
+        try {
+          const actionUrlReady = await getNotificationActionUrlReady();
+          const message = `Lịch hẹn #${appointmentId} đã bị bác sĩ hủy. Lý do: ${decisionNote}`;
+          await db.execute<ResultSetHeader>(
+            actionUrlReady
+              ? `INSERT INTO notifications (user_id, message, action_url, is_read, created_at)
+                 VALUES (?, ?, ?, false, NOW())`
+              : `INSERT INTO notifications (user_id, message, is_read, created_at)
+                 VALUES (?, ?, false, NOW())`,
+            actionUrlReady ? [current.user_id, message, "/patient/appointments"] : [current.user_id, message]
+          );
+        } catch (notificationError) {
+          console.error("Failed to create doctor-cancel notification:", notificationError);
+        }
+      })();
     }
 
-    await connection.commit();
-    await writeAuditLog({
-      user_id: authUser.id,
-      action: "doctor_appointment_status_update",
-      entity_type: "appointment",
-      entity_id: appointmentId,
-      status: "success",
-      detail: `status: ${current.status} -> ${status}`,
-    });
+    void writeAuditLog({
+        user_id: authUser.id,
+        action: "doctor_appointment_status_update",
+        entity_type: "appointment",
+        entity_id: appointmentId,
+        status: "success",
+        detail: `status: ${current.status} -> ${status}`,
+      }).catch((auditError) => {
+        console.error("Failed to write doctor success audit log:", auditError);
+      });
 
     return NextResponse.json({
       success: true,
@@ -467,15 +464,26 @@ export async function PATCH(
         new_status: status,
       },
     });
-  } catch {
+  } catch (error) {
     await connection.rollback();
-    await writeAuditLog({
-      action: "doctor_appointment_status_update",
-      entity_type: "appointment",
-      entity_id: appointmentIdForAudit,
-      status: "failed",
-      detail: "Cập nhật trạng thái lịch hẹn thất bại",
-    });
+    console.error("PATCH /api/doctor/appointments/[id] failed:", error);
+    try {
+      await writeAuditLog({
+        action: "doctor_appointment_status_update",
+        entity_type: "appointment",
+        entity_id: appointmentIdForAudit,
+        status: "failed",
+        detail: "Cập nhật trạng thái lịch hẹn thất bại",
+      });
+    } catch (auditError) {
+      console.error("Failed to write doctor appointment audit log:", auditError);
+    }
+    if ((error as { code?: string }).code === "ER_DUP_ENTRY") {
+      return NextResponse.json(
+        { success: false, message: "Slot nay da co lich kham" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ success: false, message: "Lỗi server" }, { status: 500 });
   } finally {
     connection.release();

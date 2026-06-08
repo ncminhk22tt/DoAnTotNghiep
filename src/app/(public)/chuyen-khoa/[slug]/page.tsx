@@ -59,7 +59,7 @@ type Slot = {
   end_time: string;
   price: number;
   room: string | null;
-  status: "available" | "full" | "closed";
+  status: "available" | "full" | "closed" | "locked";
 };
 
 type DoctorReview = {
@@ -197,6 +197,8 @@ export default function SpecialtyDetailPage({
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [bookingMessage, setBookingMessage] = useState("");
+  const [blockingNotice, setBlockingNotice] = useState("");
+  const [fullSlotNotice, setFullSlotNotice] = useState("");
   const [needLoginHint, setNeedLoginHint] = useState(false);
   const [authUser, setAuthUser] = useState<ReturnType<typeof getAuthUser>>(null);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
@@ -233,6 +235,21 @@ export default function SpecialtyDetailPage({
     showToast(message, "error");
   }
 
+  async function hasActiveAppointmentOnDate(date: string) {
+    const token = getAccessToken("patient");
+    if (!token) return false;
+
+    const response = await apiClient.get<{ data: Array<{ work_date: string | null; status: string }> }>(
+      "/api/patient/appointments?status=pending_confirmed",
+      token
+    );
+
+    return (response.data || []).some((item) => {
+      if (!item.work_date) return false;
+      return item.work_date.slice(0, 10) === date.slice(0, 10);
+    });
+  }
+
   async function openReviewsModal() {
     if (!selectedDoctorId) return;
     setShowReviewsModal(true);
@@ -263,8 +280,12 @@ export default function SpecialtyDetailPage({
       showBookActionMessage("Vui lòng chọn khung giờ khám trước khi đặt lịch.");
       return;
     }
+    if (selectedSlot?.status === "locked") {
+      setFullSlotNotice("Khung giờ này đã bị bác sĩ hủy và hiện đang bị khóa.");
+      return;
+    }
     if (selectedSlot?.status !== "available") {
-      showBookActionMessage("Khung giờ này đã đầy. Bạn có thể tham gia danh sách chờ.");
+      setFullSlotNotice("Khung giờ này đã đầy. Bạn có thể tham gia danh sách chờ.");
       return;
     }
     if (!workDate || !selectedSlot?.start_time || isSlotPastNow(workDate, selectedSlot.start_time)) {
@@ -283,8 +304,16 @@ export default function SpecialtyDetailPage({
       showBookActionMessage("Chỉ tài khoản bệnh nhân mới được đặt lịch.");
       return;
     }
+
+    if (await hasActiveAppointmentOnDate(workDate)) {
+      setBlockingNotice("Bạn chỉ được đặt 1 lịch khám trong cùng một ngày.");
+      return;
+    }
+
     setBookingError("");
     setBookingMessage("");
+    setBlockingNotice("");
+    setFullSlotNotice("");
     setNeedLoginHint(false);
 
     const currentReason = bookingForm.reason;
@@ -693,17 +722,19 @@ export default function SpecialtyDetailPage({
 
             <div className={styles.slotGrid}>
               {visibleSlots.map((slot) => {
-                const disabled = slot.status === "closed" || isSlotPastNow(workDate, slot.start_time);
+                const disabled = slot.status === "closed" || slot.status === "locked" || isSlotPastNow(workDate, slot.start_time);
                 const active = slot.id === selectedSlotId;
                 return (
                   <button
                     key={slot.id}
-                    className={`${styles.slotBtn} ${active ? styles.slotActive : ""} ${disabled ? styles.slotDisabled : ""} ${slot.status === "full" ? styles.slotFull : ""}`}
+                    className={`${styles.slotBtn} ${active ? styles.slotActive : ""} ${disabled ? styles.slotDisabled : ""} ${slot.status === "full" ? styles.slotFull : ""} ${slot.status === "locked" ? styles.slotLocked : ""}`}
                     disabled={disabled}
                     onClick={() => {
                       if (disabled) return;
                       setSelectedSlotId(slot.id);
                       setNeedLoginHint(false);
+                      setBlockingNotice("");
+                      setFullSlotNotice("");
                     }}
                   >
                     {slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}
@@ -772,6 +803,36 @@ export default function SpecialtyDetailPage({
         </section>
 
       </main>
+      {fullSlotNotice ? (
+        <div className={styles.noticeOverlay} role="alert" aria-live="assertive">
+          <div className={styles.noticeBanner}>
+            <p className={styles.noticeText}>{fullSlotNotice}</p>
+            <button
+              type="button"
+              className={styles.noticeClose}
+              onClick={() => setFullSlotNotice("")}
+              aria-label="Đóng thông báo"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {blockingNotice ? (
+        <div className={styles.noticeOverlay} role="alert" aria-live="assertive">
+          <div className={styles.noticeBanner}>
+            <p className={styles.noticeText}>{blockingNotice}</p>
+            <button
+              type="button"
+              className={styles.noticeClose}
+              onClick={() => setBlockingNotice("")}
+              aria-label="Đóng thông báo"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      ) : null}
       {showBookingForm ? (
         <div className={styles.modalOverlay}>
           <div className={styles.modalCard}>

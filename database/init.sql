@@ -94,7 +94,22 @@ CREATE TABLE IF NOT EXISTS appointments (
   admin_note TEXT NULL,
   checked_in_at DATETIME NULL,
   checked_in_by BIGINT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  appointment_day DATE NULL,
+  active_slot_id BIGINT GENERATED ALWAYS AS (
+    CASE
+      WHEN status IN ('pending', 'confirmed') THEN slot_id
+      ELSE NULL
+    END
+  ) STORED,
+  active_appointment_day DATE GENERATED ALWAYS AS (
+    CASE
+      WHEN status IN ('pending', 'confirmed') THEN appointment_day
+      ELSE NULL
+    END
+  ) STORED,
+  UNIQUE KEY uniq_active_appointment_slot (active_slot_id),
+  UNIQUE KEY uniq_active_user_day (user_id, active_appointment_day)
 );
 
 CREATE TABLE IF NOT EXISTS payments (

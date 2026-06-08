@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { MouseEvent, useState } from "react";
+import { MouseEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { clearAllAuthSessions, getActiveRole, getAuthUser } from "@/lib/authClient";
@@ -32,9 +32,17 @@ export function PublicHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const personalHref = resolvePersonalHref();
-  const isLoggedIn = personalHref !== "/login";
-  const authUser = resolveAuthUser();
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [personalHref, setPersonalHref] = useState("/login");
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    setAuthUser(resolveAuthUser());
+    setPersonalHref(resolvePersonalHref());
+    setAuthReady(true);
+  }, []);
+
+  const isLoggedIn = authReady && personalHref !== "/login" && !!authUser;
 
   function goPersonal(e?: MouseEvent) {
     e?.preventDefault();

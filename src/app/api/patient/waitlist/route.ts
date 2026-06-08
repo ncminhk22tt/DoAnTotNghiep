@@ -9,7 +9,7 @@ interface SlotRow extends RowDataPacket {
   work_date: string;
   start_time: string;
   end_time: string;
-  status: "available" | "full" | "closed";
+  status: "available" | "full" | "closed" | "locked";
   booked_count: number;
   max_patients: number;
   service_name: string | null;
@@ -122,6 +122,14 @@ export async function POST(req: NextRequest) {
     }
 
     const slot = slotRows[0];
+    if (slot.status === "locked") {
+      await connection.rollback();
+      return NextResponse.json(
+        { success: false, message: "Slot nay da bi khoa" },
+        { status: 400 }
+      );
+    }
+
     if (slot.status === "closed") {
       await connection.rollback();
       return NextResponse.json(
@@ -130,7 +138,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (slot.status !== "full" && slot.booked_count < slot.max_patients) {
+    if (slot.booked_count < 1) {
       await connection.rollback();
       return NextResponse.json(
         { success: false, message: "Slot nay van con cho, ban co the dat lich truc tiep" },
@@ -244,4 +252,3 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
-

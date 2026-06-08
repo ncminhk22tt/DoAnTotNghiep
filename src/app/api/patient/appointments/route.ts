@@ -22,7 +22,7 @@ interface SlotRow extends RowDataPacket {
   work_date: string;
   start_time: string;
   end_time: string;
-  status: "available" | "full" | "closed";
+  status: "available" | "full" | "closed" | "locked";
 }
 
 interface DoctorUserRow extends RowDataPacket {
@@ -163,6 +163,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const hasScheduleIdColumn = await hasTableColumn("appointments", "schedule_id");
+    const hasAppointmentDayColumn = await hasTableColumn("appointments", "appointment_day");
     const hasSlotServiceIdColumn = await hasTableColumn("doctor_schedule_slots", "service_id");
     const waitlistTableReady = await hasAppointmentWaitlistTable(connection);
     const notificationsTableReady = await hasTable(connection, "notifications");
@@ -230,10 +231,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (slot.status === "full" || slot.booked_count >= slot.max_patients) {
+    if (slot.status === "full" || slot.booked_count >= 1) {
       await connection.rollback();
       return NextResponse.json(
         { success: false, message: "Slot da day" },
+        { status: 400 }
+      );
+    }
+
+    const [activeAppointmentRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id
+       FROM appointments
+       WHERE slot_id = ?
+         AND status IN ('pending', 'confirmed')
+       LIMIT 1
+       FOR UPDATE`,
+      [slot_id]
+    );
+
+    if (activeAppointmentRows.length > 0) {
+      await connection.rollback();
+      return NextResponse.json(
+        { success: false, message: "Slot nay da co lich kham" },
         { status: 400 }
       );
     }
@@ -248,7 +267,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Kiem trả trung gio: patient không duoc co 2 lich chong len nhau.
+    // Kiem tra trung ngay: patient không duoc co 2 lich active trong cung 1 ngay.
+    const [existingSameDay] = await connection.execute<RowDataPacket[]>(
+      `SELECT a.id
+       FROM appointments a
+       JOIN doctor_schedule_slots s ON a.slot_id = s.id
+       WHERE a.user_id = ?
+         AND s.work_date = ?
+         AND a.status IN ('pending','confirmed')
+       LIMIT 1
+       FOR UPDATE`,
+      [patient_id, slot.work_date]
+    );
+
+    if (existingSameDay.length > 0) {
+      await connection.rollback();
+      return NextResponse.json(
+        { success: false, message: "Bạn chỉ được đặt 1 lịch khám trong cùng một ngày" },
+        { status: 400 }
+      );
+    }
+
+    // Kiem tra trung gio: patient không duoc co 2 lich chong len nhau.
     const [existing] = await connection.execute<RowDataPacket[]>(
       `SELECT a.id
        FROM appointments a
@@ -276,7 +316,7 @@ export async function POST(req: NextRequest) {
       [slot_id]
     );
 
-    if (slot.booked_count + 1 >= slot.max_patients) {
+    if (slot.booked_count + 1 >= 1) {
       await connection.execute(
         `UPDATE doctor_schedule_slots
          SET status = 'full'
@@ -286,11 +326,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Tao lịch hẹn.
-    if (hasScheduleIdColumn) {
+    if (hasScheduleIdColumn && hasAppointmentDayColumn) {
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO appointments (user_id, slot_id, doctor_id, schedule_id, appointment_day, status, note, created_at)
+         VALUES (?, ?, ?, ?, ?, 'confirmed', ?, NOW())`,
+        [patient_id, slot_id, slot.doctor_id, slot_id, slot.work_date, note]
+      );
+    } else if (hasScheduleIdColumn) {
       await connection.execute<ResultSetHeader>(
         `INSERT INTO appointments (user_id, slot_id, doctor_id, schedule_id, status, note, created_at)
          VALUES (?, ?, ?, ?, 'confirmed', ?, NOW())`,
         [patient_id, slot_id, slot.doctor_id, slot_id, note]
+      );
+    } else if (hasAppointmentDayColumn) {
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO appointments (user_id, slot_id, doctor_id, appointment_day, status, note, created_at)
+         VALUES (?, ?, ?, ?, 'confirmed', ?, NOW())`,
+        [patient_id, slot_id, slot.doctor_id, slot.work_date, note]
       );
     } else {
       await connection.execute<ResultSetHeader>(
@@ -335,71 +387,77 @@ export async function POST(req: NextRequest) {
       `Ghi chu dat lich: ${noteText}`,
     ].join("\n");
 
-    if (notificationsTableReady) {
-      const actionUrlReady = await getNotificationActionUrlReady();
-      const patientActionUrl = "/patient/appointments";
-      const doctorActionUrl = "/doctor/appointments";
-
-      if (actionUrlReady && notificationsHasIsReadColumn) {
-        await connection.execute(
-          `INSERT INTO notifications (user_id, message, action_url, is_read, created_at)
-           VALUES (?, ?, ?, false, NOW())`,
-          [patient_id, patientBookingMessage, patientActionUrl]
-        );
-
-        if (doctorUserId) {
-          await connection.execute(
-            `INSERT INTO notifications (user_id, message, action_url, is_read, created_at)
-             VALUES (?, ?, ?, false, NOW())`,
-            [doctorUserId, "Ban co lich hen moi", doctorActionUrl]
-          );
-        }
-      } else if (actionUrlReady && !notificationsHasIsReadColumn) {
-        await connection.execute(
-          `INSERT INTO notifications (user_id, message, action_url, created_at)
-           VALUES (?, ?, ?, NOW())`,
-          [patient_id, patientBookingMessage, patientActionUrl]
-        );
-
-        if (doctorUserId) {
-          await connection.execute(
-            `INSERT INTO notifications (user_id, message, action_url, created_at)
-             VALUES (?, ?, ?, NOW())`,
-            [doctorUserId, "Ban co lich hen moi", doctorActionUrl]
-          );
-        }
-      } else if (!actionUrlReady && notificationsHasIsReadColumn) {
-        await connection.execute(
-          `INSERT INTO notifications (user_id, message, is_read, created_at)
-           VALUES (?, ?, false, NOW())`,
-          [patient_id, patientBookingMessage]
-        );
-
-        if (doctorUserId) {
-          await connection.execute(
-            `INSERT INTO notifications (user_id, message, is_read, created_at)
-             VALUES (?, ?, false, NOW())`,
-            [doctorUserId, "Ban co lich hen moi"]
-          );
-        }
-      } else {
-        await connection.execute(
-          `INSERT INTO notifications (user_id, message, created_at)
-           VALUES (?, ?, NOW())`,
-          [patient_id, patientBookingMessage]
-        );
-
-        if (doctorUserId) {
-          await connection.execute(
-            `INSERT INTO notifications (user_id, message, created_at)
-             VALUES (?, ?, NOW())`,
-            [doctorUserId, "Ban co lich hen moi"]
-          );
-        }
-      }
-    }
-
     await connection.commit();
+
+    if (notificationsTableReady) {
+      void (async () => {
+        try {
+          const actionUrlReady = await getNotificationActionUrlReady();
+          const patientActionUrl = "/patient/appointments";
+          const doctorActionUrl = "/doctor/appointments";
+
+          if (actionUrlReady && notificationsHasIsReadColumn) {
+            await db.execute(
+              `INSERT INTO notifications (user_id, message, action_url, is_read, created_at)
+               VALUES (?, ?, ?, false, NOW())`,
+              [patient_id, patientBookingMessage, patientActionUrl]
+            );
+
+            if (doctorUserId) {
+              await db.execute(
+                `INSERT INTO notifications (user_id, message, action_url, is_read, created_at)
+                 VALUES (?, ?, ?, false, NOW())`,
+                [doctorUserId, "Ban co lich hen moi", doctorActionUrl]
+              );
+            }
+          } else if (actionUrlReady && !notificationsHasIsReadColumn) {
+            await db.execute(
+              `INSERT INTO notifications (user_id, message, action_url, created_at)
+               VALUES (?, ?, ?, NOW())`,
+              [patient_id, patientBookingMessage, patientActionUrl]
+            );
+
+            if (doctorUserId) {
+              await db.execute(
+                `INSERT INTO notifications (user_id, message, action_url, created_at)
+                 VALUES (?, ?, ?, NOW())`,
+                [doctorUserId, "Ban co lich hen moi", doctorActionUrl]
+              );
+            }
+          } else if (!actionUrlReady && notificationsHasIsReadColumn) {
+            await db.execute(
+              `INSERT INTO notifications (user_id, message, is_read, created_at)
+               VALUES (?, ?, false, NOW())`,
+              [patient_id, patientBookingMessage]
+            );
+
+            if (doctorUserId) {
+              await db.execute(
+                `INSERT INTO notifications (user_id, message, is_read, created_at)
+                 VALUES (?, ?, false, NOW())`,
+                [doctorUserId, "Ban co lich hen moi"]
+              );
+            }
+          } else {
+            await db.execute(
+              `INSERT INTO notifications (user_id, message, created_at)
+               VALUES (?, ?, NOW())`,
+              [patient_id, patientBookingMessage]
+            );
+
+            if (doctorUserId) {
+              await db.execute(
+                `INSERT INTO notifications (user_id, message, created_at)
+                 VALUES (?, ?, NOW())`,
+                [doctorUserId, "Ban co lich hen moi"]
+              );
+            }
+          }
+        } catch (notificationError) {
+          console.error("Failed to create booking notifications:", notificationError);
+        }
+      })();
+    }
 
     return NextResponse.json({
       success: true,
@@ -409,6 +467,12 @@ export async function POST(req: NextRequest) {
     console.error("POST /api/patient/appointments failed:", error);
     if (transactionStarted) {
       await connection.rollback();
+    }
+    if ((error as { code?: string }).code === "ER_DUP_ENTRY") {
+      return NextResponse.json(
+        { success: false, message: "Slot nay da co lich kham" },
+        { status: 400 }
+      );
     }
     return NextResponse.json(
       {
@@ -564,7 +628,7 @@ export async function PATCH(req: NextRequest) {
     );
 
     const newBookedCount = Math.max(slot.booked_count - 1, 0);
-    if (slot.status === "full" && newBookedCount < slot.max_patients) {
+    if (slot.status === "full" && newBookedCount < 1) {
       await connection.execute(
         `UPDATE doctor_schedule_slots
          SET status = 'available'
@@ -573,51 +637,66 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    if (waitlistTableReady && newBookedCount < slot.max_patients) {
+    if (waitlistTableReady && newBookedCount < 1) {
       await notifyWaitingPatientForSlot(connection, appointment.slot_id);
     }
 
-    const [doctorRows] = await connection.execute<DoctorUserRow[]>(
-      `SELECT d.user_id, u.full_name
-       FROM doctors d
-       LEFT JOIN users u ON u.id = d.user_id
-       WHERE d.id = ? LIMIT 1`,
-      [slot.doctor_id]
-    );
-    const doctorName = doctorRows[0]?.full_name || "BS. Chua cap nhat";
-    const [serviceRows] = await connection.execute<ServiceRow[]>(
-      "SELECT name FROM services WHERE id = ? LIMIT 1",
-      [slot.service_id]
-    );
-    const serviceName = serviceRows[0]?.name || "Kham tong quat";
-    const cancelMessage = [
-      serviceName,
-      "Benh nhan huy",
-      `Lich kham: ${formatDatePart(slot.work_date)} (${formatTimePart(slot.start_time)} - ${formatTimePart(slot.end_time)})`,
-      `Bac si: ${doctorName}`,
-      `Ly do huy: ${cancelReason}`,
-    ].join("\n");
+    await connection.commit();
+
     if (notificationsTableReady) {
-      const actionUrlReady = await getNotificationActionUrlReady();
-      await connection.execute<ResultSetHeader>(
-        actionUrlReady && notificationsHasIsReadColumn
-          ? `INSERT INTO notifications (user_id, message, action_url, is_read, created_at)
-             VALUES (?, ?, ?, false, NOW())`
-          : actionUrlReady && !notificationsHasIsReadColumn
-          ? `INSERT INTO notifications (user_id, message, action_url, created_at)
-             VALUES (?, ?, ?, NOW())`
-          : !actionUrlReady && notificationsHasIsReadColumn
-          ? `INSERT INTO notifications (user_id, message, is_read, created_at)
-             VALUES (?, ?, false, NOW())`
-          : `INSERT INTO notifications (user_id, message, created_at)
-             VALUES (?, ?, NOW())`,
-        actionUrlReady ? [patient_id, cancelMessage, "/patient/appointments"] : [patient_id, cancelMessage]
-      );
+      void (async () => {
+        try {
+          const [doctorRows] = await db.execute<DoctorUserRow[]>(
+            `SELECT d.user_id, u.full_name
+             FROM doctors d
+             LEFT JOIN users u ON u.id = d.user_id
+             WHERE d.id = ? LIMIT 1`,
+            [slot.doctor_id]
+          );
+          const doctorName = doctorRows[0]?.full_name || "BS. Chua cap nhat";
+          const [serviceRows] = await db.execute<ServiceRow[]>(
+            "SELECT name FROM services WHERE id = ? LIMIT 1",
+            [slot.service_id]
+          );
+          const serviceName = serviceRows[0]?.name || "Kham tong quat";
+          const cancelMessage = [
+            serviceName,
+            "Benh nhan huy",
+            `Lich kham: ${formatDatePart(slot.work_date)} (${formatTimePart(slot.start_time)} - ${formatTimePart(slot.end_time)})`,
+            `Bac si: ${doctorName}`,
+            `Ly do huy: ${cancelReason}`,
+          ].join("\n");
+          const actionUrlReady = await getNotificationActionUrlReady();
+          await db.execute<ResultSetHeader>(
+            actionUrlReady && notificationsHasIsReadColumn
+              ? `INSERT INTO notifications (user_id, message, action_url, is_read, created_at)
+                 VALUES (?, ?, ?, false, NOW())`
+              : actionUrlReady && !notificationsHasIsReadColumn
+              ? `INSERT INTO notifications (user_id, message, action_url, created_at)
+                 VALUES (?, ?, ?, NOW())`
+              : !actionUrlReady && notificationsHasIsReadColumn
+              ? `INSERT INTO notifications (user_id, message, is_read, created_at)
+                 VALUES (?, ?, false, NOW())`
+              : `INSERT INTO notifications (user_id, message, created_at)
+                 VALUES (?, ?, NOW())`,
+            actionUrlReady ? [patient_id, cancelMessage, "/patient/appointments"] : [patient_id, cancelMessage]
+          );
+        } catch (notificationError) {
+          console.error("Failed to create patient-cancel notification:", notificationError);
+        }
+      })();
     }
 
-    await evaluatePatientRiskAndNotifyAdmins(connection, patient_id);
-
-    await connection.commit();
+    void (async () => {
+      const riskConnection = await db.getConnection();
+      try {
+        await evaluatePatientRiskAndNotifyAdmins(riskConnection, patient_id);
+      } catch (riskError) {
+        console.error("Failed to evaluate patient risk after cancel:", riskError);
+      } finally {
+        riskConnection.release();
+      }
+    })();
 
     return NextResponse.json({
       success: true,

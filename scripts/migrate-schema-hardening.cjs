@@ -61,7 +61,7 @@ async function main() {
           price DECIMAL(10,2) DEFAULT NULL,
           max_patients INT DEFAULT 1,
           booked_count INT DEFAULT 0,
-          status ENUM('available','full','closed') DEFAULT 'available',
+          status ENUM('available','full','closed','locked') DEFAULT 'available',
           UNIQUE KEY unique_slot (doctor_id, work_date, start_time)
         )`
       );

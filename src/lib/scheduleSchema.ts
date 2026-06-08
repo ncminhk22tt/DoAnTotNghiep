@@ -31,8 +31,8 @@ export async function ensureScheduleClosedStatus() {
     }
 
     const columnType = rows[0].COLUMN_TYPE || "";
-    if (!columnType.includes("'closed'")) {
-      throw new Error("Database schema not ready: doctor_schedule_slots.status must include 'closed'");
+    if (!columnType.includes("'closed'") || !columnType.includes("'locked'")) {
+      throw new Error("Database schema not ready: doctor_schedule_slots.status must include 'closed' and 'locked'");
     }
 
     checked = true;

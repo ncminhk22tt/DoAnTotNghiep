@@ -261,10 +261,12 @@ export async function PUT(
         ? (body.status as "available" | "full" | "closed")
         : null;
 
-    const computedStatus =
-      current.booked_count >= max_patients ? "full" : "available";
-
-    const finalStatus = requestedStatus ?? (current.status === "closed" ? "closed" : computedStatus);
+    const finalStatus =
+      current.status === "closed" || requestedStatus === "closed"
+        ? "closed"
+        : current.booked_count >= 1
+        ? "full"
+        : "available";
 
     await connection.execute<ResultSetHeader>(
       `UPDATE doctor_schedule_slots
